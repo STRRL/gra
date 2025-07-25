@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gractl-config
+  labels:
+    app: gractl
+    component: gractl-cli
+data:
+  config.yaml: |
+    # Gractl configuration
+    grad:
+      # Grad service endpoint
+      endpoint: "grad-service:9090"
+      timeout: "30s"
+      
+    workspace:
+      # Local workspace configuration
+      root: "/workspace"
+      config_file: "config.yaml"
+      
+      # Sync configuration
+      sync:
+        enabled: true
+        sshfs_options: "allow_other,reconnect,ServerAliveInterval=15,ServerAliveCountMax=3"
+        mount_timeout: "30s"
+        
+    development:
+      debug: false
+      verbose: false

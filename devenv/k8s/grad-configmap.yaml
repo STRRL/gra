@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grad-config
+  labels:
+    app: grad
+    component: grad-service
+data:
+  config.yaml: |
+    server:
+      http_port: 8080
+      grpc_port: 9090
+      log_level: info
+    
+    runners:
+      # Runner container image configuration
+      image: "runner:latest"
+      
+      # Default runner resources
+      resources:
+        requests:
+          memory: "256Mi"
+          cpu: "200m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
+      
+      # Runner workspace configuration
+      workspace:
+        root: "/workspace"
+        code_dir: "code" 
+        output_dir: "outputs"
+        data_dir: "data"
+      
+      # SSH configuration for workspace sync
+      ssh:
+        port: 22
+        key_path: "/etc/ssh/keys"
+      
+      # S3FS mount configuration  
+      s3fs:
+        mount_point: "/workspace/data"
+        cache_dir: "/tmp/s3fs-cache"
+        options: "allow_other,use_cache=/tmp/s3fs-cache"
+    
+    kubernetes:
+      namespace: "default"
+      runner_name_prefix: "runner-"
+      cleanup_timeout: "300s"
+      
+    development:
+      enable_debug: false
+      mock_s3: false
+      local_workspace: "/tmp/grad-workspace"

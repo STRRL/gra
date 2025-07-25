@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go mod:*)",
+      "Bash(go get:*)",
+      "Bash(mkdir:*)",
+      "Bash(make:*)",
+      "Bash(ls:*)",
+      "Bash(./out/gra:*)",
+      "Bash(rm:*)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:gist.githubusercontent.com)",
+      "Bash(mv:*)",
+      "Bash(aws s3:*)",
+      "Bash(s3fs:*)",
+      "Bash(chmod:*)",
+      "WebFetch(domain:blog.ronin.cloud)",
+      "WebFetch(domain:improve.dk)",
+      "WebFetch(domain:skaffold.dev)",
+      "Bash(skaffold verify:*)"
+    ],
+    "deny": []
+  }
+}
