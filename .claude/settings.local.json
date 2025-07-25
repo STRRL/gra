@@ -17,7 +17,11 @@
       "WebFetch(domain:blog.ronin.cloud)",
       "WebFetch(domain:improve.dk)",
       "WebFetch(domain:skaffold.dev)",
-      "Bash(skaffold verify:*)"
+      "Bash(skaffold verify:*)",
+      "Bash(go build:*)",
+      "WebFetch(domain:buf.build)",
+      "Bash(curl:*)",
+      "Bash(grpcurl:*)"
     ],
     "deny": []
   }

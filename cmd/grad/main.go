@@ -1,19 +1,195 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"net"
+	"net/http"
 	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+
+	gradv1 "github.com/strrl/gra/gen/grad/v1"
+	grpcserver "github.com/strrl/gra/internal/grpc"
 )
+
+var (
+	httpPort string
+	grpcPort string
+
+	// Prometheus metrics
+	httpRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_requests_total",
+			Help: "Total number of HTTP requests",
+		},
+		[]string{"method", "endpoint", "status"},
+	)
+
+	httpRequestDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "http_request_duration_seconds",
+			Help: "Duration of HTTP requests in seconds",
+		},
+		[]string{"method", "endpoint"},
+	)
+
+	grpcRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "grpc_requests_total",
+			Help: "Total number of gRPC requests",
+		},
+		[]string{"method", "status"},
+	)
+
+	grpcRequestDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "grpc_request_duration_seconds",
+			Help: "Duration of gRPC requests in seconds",
+		},
+		[]string{"method"},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(httpRequestsTotal)
+	prometheus.MustRegister(httpRequestDuration)
+	prometheus.MustRegister(grpcRequestsTotal)
+	prometheus.MustRegister(grpcRequestDuration)
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "grad",
-	Short: "Grad - A CLI tool",
-	Long:  `Grad is a command-line interface tool.`,
+	Short: "Grad - HTTP and gRPC service for managing runners",
+	Long:  `Grad is a dual HTTP/gRPC service that manages runner lifecycle in Kubernetes.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("grad called")
+		runServers()
 	},
+}
+
+func init() {
+	rootCmd.Flags().StringVar(&httpPort, "http-port", "8080", "HTTP server port")
+	rootCmd.Flags().StringVar(&grpcPort, "grpc-port", "9090", "gRPC server port")
+}
+
+func runServers() {
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Create gRPC server
+	grpcSrv := grpcserver.NewServer()
+
+	// Start HTTP server
+	go func() {
+		defer wg.Done()
+		runHTTPServer()
+	}()
+
+	// Start gRPC server
+	go func() {
+		defer wg.Done()
+		runGRPCServer(grpcSrv)
+	}()
+
+	// Wait for interrupt signal
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	<-sigChan
+
+	log.Println("Shutting down grad services...")
+
+	// Graceful shutdown context
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Shutdown both servers (we'll add this logic)
+	shutdownServers(ctx)
+
+	log.Println("grad services stopped")
+}
+
+func runHTTPServer() {
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
+
+	// Add middleware for logging and recovery
+	r.Use(gin.Logger())
+	r.Use(gin.Recovery())
+
+	// Add Prometheus metrics middleware
+	r.Use(prometheusMiddleware())
+
+	// Health check endpoint
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	// Readiness check endpoint
+	r.GET("/ready", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ready"})
+	})
+
+	// Prometheus metrics endpoint
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	server := &http.Server{
+		Addr:    ":" + httpPort,
+		Handler: r,
+	}
+
+	log.Printf("HTTP server starting on port %s", httpPort)
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Printf("HTTP server error: %v", err)
+	}
+}
+
+func runGRPCServer(srv *grpcserver.Server) {
+	lis, err := net.Listen("tcp", ":"+grpcPort)
+	if err != nil {
+		log.Fatalf("Failed to listen on port %s: %v", grpcPort, err)
+	}
+
+	grpcServer := grpc.NewServer()
+	gradv1.RegisterRunnerServiceServer(grpcServer, srv)
+	
+	// Enable reflection for grpcurl and other tools
+	reflection.Register(grpcServer)
+
+	log.Printf("gRPC server starting on port %s", grpcPort)
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Printf("gRPC server error: %v", err)
+	}
+}
+
+func shutdownServers(ctx context.Context) {
+	// For now, we'll implement basic shutdown
+	// In a production environment, you'd want to properly handle
+	// graceful shutdown of both HTTP and gRPC servers
+	log.Println("Server shutdown logic would be implemented here")
+}
+
+func prometheusMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+
+		c.Next()
+
+		duration := time.Since(start).Seconds()
+		status := fmt.Sprintf("%d", c.Writer.Status())
+
+		httpRequestsTotal.WithLabelValues(c.Request.Method, c.Request.URL.Path, status).Inc()
+		httpRequestDuration.WithLabelValues(c.Request.Method, c.Request.URL.Path).Observe(duration)
+	}
 }
 
 func Execute() {

@@ -1,0 +1,186 @@
+syntax = "proto3";
+
+package grad.v1;
+
+option go_package = "github.com/strrl/gra/gen/grad/v1;gradv1";
+
+// RunnerService manages the lifecycle of runners in the grad system
+service RunnerService {
+  // CreateRunner creates a new runner instance
+  rpc CreateRunner(CreateRunnerRequest) returns (CreateRunnerResponse);
+  
+  // DeleteRunner removes a runner instance
+  rpc DeleteRunner(DeleteRunnerRequest) returns (DeleteRunnerResponse);
+  
+  // ListRunners returns all available runners
+  rpc ListRunners(ListRunnersRequest) returns (ListRunnersResponse);
+  
+  // ExecuteCode executes code in a specific runner
+  rpc ExecuteCode(ExecuteCodeRequest) returns (ExecuteCodeResponse);
+  
+  // GetRunner returns details about a specific runner
+  rpc GetRunner(GetRunnerRequest) returns (GetRunnerResponse);
+}
+
+// CreateRunnerRequest defines the request to create a new runner
+message CreateRunnerRequest {
+  // Name of the runner (optional, will be auto-generated if not provided)
+  string name = 1;
+  
+  // Resource requirements for the runner
+  ResourceRequirements resources = 2;
+  
+  // Environment variables to set in the runner
+  map<string, string> env = 3;
+}
+
+// CreateRunnerResponse defines the response after creating a runner
+message CreateRunnerResponse {
+  // The created runner details
+  Runner runner = 1;
+}
+
+// DeleteRunnerRequest defines the request to delete a runner
+message DeleteRunnerRequest {
+  // ID of the runner to delete
+  string runner_id = 1;
+}
+
+// DeleteRunnerResponse defines the response after deleting a runner
+message DeleteRunnerResponse {
+  // Success message
+  string message = 1;
+}
+
+// ListRunnersRequest defines the request to list runners
+message ListRunnersRequest {
+  // Optional filter by status
+  RunnerStatus status = 1;
+  
+  // Pagination limit
+  int32 limit = 2;
+  
+  // Pagination offset
+  int32 offset = 3;
+}
+
+// ListRunnersResponse defines the response containing runner list
+message ListRunnersResponse {
+  // List of runners
+  repeated Runner runners = 1;
+  
+  // Total count of runners (for pagination)
+  int32 total = 2;
+}
+
+// ExecuteCodeRequest defines the request to execute code
+message ExecuteCodeRequest {
+  // ID of the runner to execute code in
+  string runner_id = 1;
+  
+  // Code to execute
+  string code = 2;
+  
+  // Language/runtime for the code
+  string language = 3;
+  
+  // Timeout for execution (in seconds)
+  int32 timeout = 4;
+  
+  // Working directory for execution
+  string working_dir = 5;
+}
+
+// ExecuteCodeResponse defines the response after code execution
+message ExecuteCodeResponse {
+  // Execution output (stdout)
+  string output = 1;
+  
+  // Error output (stderr)
+  string error = 2;
+  
+  // Exit code of the execution
+  int32 exit_code = 3;
+  
+  // Execution duration (in milliseconds)
+  int64 duration_ms = 4;
+}
+
+// GetRunnerRequest defines the request to get runner details
+message GetRunnerRequest {
+  // ID of the runner to retrieve
+  string runner_id = 1;
+}
+
+// GetRunnerResponse defines the response containing runner details
+message GetRunnerResponse {
+  // The runner details
+  Runner runner = 1;
+}
+
+// Runner represents a runner instance
+message Runner {
+  // Unique identifier for the runner
+  string id = 1;
+  
+  // Name of the runner
+  string name = 2;
+  
+  // Current status of the runner
+  RunnerStatus status = 3;
+  
+  // Resource requirements/allocation
+  ResourceRequirements resources = 4;
+  
+  // Creation timestamp
+  int64 created_at = 5;
+  
+  // Last updated timestamp
+  int64 updated_at = 6;
+  
+  // SSH connection details
+  SSHDetails ssh = 7;
+  
+  // Runner's IP address
+  string ip_address = 8;
+  
+  // Environment variables
+  map<string, string> env = 9;
+}
+
+// RunnerStatus represents the status of a runner
+enum RunnerStatus {
+  RUNNER_STATUS_UNSPECIFIED = 0;
+  RUNNER_STATUS_CREATING = 1;
+  RUNNER_STATUS_RUNNING = 2;
+  RUNNER_STATUS_STOPPING = 3;
+  RUNNER_STATUS_STOPPED = 4;
+  RUNNER_STATUS_ERROR = 5;
+}
+
+// ResourceRequirements defines resource allocation for a runner
+message ResourceRequirements {
+  // CPU allocation (in millicores, e.g., 1000 = 1 CPU)
+  int32 cpu_millicores = 1;
+  
+  // Memory allocation (in MB)
+  int32 memory_mb = 2;
+  
+  // Storage allocation (in GB)
+  int32 storage_gb = 3;
+}
+
+// SSHDetails contains SSH connection information
+message SSHDetails {
+  // SSH host
+  string host = 1;
+  
+  // SSH port
+  int32 port = 2;
+  
+  // SSH username
+  string username = 3;
+  
+  // SSH public key (for connection)
+  string public_key = 4;
+}

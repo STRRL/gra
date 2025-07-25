@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24 AS builder
 
 WORKDIR /app
 
@@ -14,10 +14,13 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o grad ./cmd/grad
 
 # Final stage
-FROM alpine:latest
+FROM debian:bookworm-slim
 
-# Install ca-certificates for HTTPS requests
-RUN apk --no-cache add ca-certificates
+# Install ca-certificates and curl for HTTPS requests and health checks
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -25,7 +28,7 @@ WORKDIR /app
 COPY --from=builder /app/grad .
 
 # Create non-root user
-RUN adduser -D -s /bin/sh appuser
+RUN useradd -r -s /bin/false appuser
 USER appuser
 
 # Expose ports
@@ -33,7 +36,7 @@ EXPOSE 8080 9090
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+    CMD curl -f http://localhost:8080/health || exit 1
 
 # Run the grad service
 CMD ["./grad"]
