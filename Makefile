@@ -1,4 +1,4 @@
-.PHONY: build build-grad build-gractl clean test generate help minikube-start minikube-stop minikube-status dev dev-stop dev-debug
+.PHONY: build build-grad build-gractl clean test test-integration test-all generate help minikube-start minikube-stop minikube-status dev dev-stop dev-debug
 
 # Build configuration
 OUT_DIR=out
@@ -50,8 +50,16 @@ clean:
 	go clean
 
 # Run tests
+# Run unit tests (fast, no Kubernetes required)
 test:
 	go test ./...
+
+# Run integration tests (requires Kubernetes cluster)
+test-integration:
+	go test -tags=integration ./...
+
+# Run all tests (unit + integration)
+test-all: test test-integration
 
 # Generate protobuf code
 generate:
@@ -100,7 +108,9 @@ help:
 	@echo "  build-gractl- Build gractl binary"
 	@echo "  build-all   - Build for all platforms"
 	@echo "  clean       - Clean build artifacts"
-	@echo "  test        - Run tests"
+	@echo "  test        - Run unit tests (fast, no Kubernetes required)"
+	@echo "  test-integration - Run integration tests (requires Kubernetes)"
+	@echo "  test-all    - Run all tests (unit + integration)"
 	@echo "  generate    - Generate protobuf code using buf"
 	@echo ""
 	@echo "Development targets:"

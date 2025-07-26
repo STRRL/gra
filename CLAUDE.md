@@ -234,16 +234,45 @@ case err, ok := <-errCh:
 
 ## Testing
 
+The project separates unit tests from integration tests to improve development velocity and CI/CD pipelines.
+
+### Unit Tests (Fast, No Dependencies)
 ```bash
-# Run all tests
+# Run unit tests only (default)
 make test
 
-# Tests are located alongside source files (*_test.go)
-# Key test files:
-# - internal/grad/service/types_test.go
-# - internal/grad/service/pod_spec_test.go
-# - internal/grad/service/runner_test.go
+# Tests pure business logic without external dependencies
+# Located alongside source files (*_test.go)
+# Key unit test files:
+# - internal/grad/service/types_test.go (domain type conversions)
+# - internal/grad/service/pod_spec_test.go (pod specification generation)
+# - internal/grad/service/runner_test.go (domain object tests)
+# - internal/grad/service/activity_test.go (activity tracking)
+# - internal/grad/service/cleanup_test.go (cleanup service)
 ```
+
+### Integration Tests (Require Kubernetes)
+```bash
+# Run integration tests (requires Kubernetes cluster)
+make test-integration
+
+# Tests that interact with real Kubernetes API
+# Files marked with //go:build integration tag
+# Key integration test files:
+# - internal/grad/service/runner_integration_test.go (TestRunnerServiceBasics)
+```
+
+### All Tests
+```bash
+# Run both unit and integration tests
+make test-all
+```
+
+### Test Strategy
+- **Unit tests**: Fast feedback, no external dependencies, run in CI/CD
+- **Integration tests**: Comprehensive end-to-end validation, require cluster
+- **Build tags**: `//go:build integration` separates test types
+- **CI Strategy**: Run unit tests on every commit, integration tests on deployment
 
 ## Collaboration Patterns
 
