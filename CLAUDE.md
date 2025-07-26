@@ -57,6 +57,7 @@ buf generate        # Regenerate protobuf code after changes to .proto files
 1. **Clean Architecture**: 
    - gRPC layer (controller) → Service layer (business logic) → Kubernetes layer (infrastructure)
    - Domain types separate from protobuf types with conversion functions
+   - RunnerStatus uses string constants ("creating", "running", "stopped", etc.)
 
 2. **Resource Management**:
    - Hardcoded "small" preset (2c2g40g) for all runners
@@ -65,6 +66,13 @@ buf generate        # Regenerate protobuf code after changes to .proto files
 3. **Error Handling**:
    - Domain-specific errors mapped to gRPC status codes
    - Consistent error propagation through layers
+   
+4. **Kubernetes-Native Storage**:
+   - No in-memory state - uses Kubernetes API as source of truth
+   - Annotations for runner metadata (runner-id, status, created-at)
+   - Labels for resource discovery and filtering
+   - Finalizers for proper resource cleanup
+   - Simple incrementing runner IDs (runner-1, runner-2, etc.)
 
 ### Core Components
 
@@ -72,6 +80,8 @@ buf generate        # Regenerate protobuf code after changes to .proto files
 - Manages runner lifecycle (create, delete, list, execute commands)
 - Integrates with Kubernetes API to create/manage pods
 - Exposes gRPC API on port 9090 and HTTP health/metrics on port 8080
+- Supports streaming command execution with real-time stdout/stderr output
+- Follows Go channel best practices (only sender closes channels)
 
 **Runner Pods**:
 - Dynamically created as Kubernetes pods
@@ -83,11 +93,13 @@ buf generate        # Regenerate protobuf code after changes to .proto files
 - Human-friendly commands with structured output
 - Designed to be AI-tool friendly for integration with Gemini CLI
 - Supports workspace management and runner operations
+- Features streaming command execution with `--stream` flag
 
 ## Important Constraints
 
 ### Build Rules
 - ❌ NEVER use `go build` directly - always use make commands
+- ❌ NEVER use `go run -c` for testing code snippets
 - ❌ NEVER build the main grad service - it's handled by skaffold dev
 - ✅ Use `make build-gractl` for building the CLI tool
 - ✅ Use `make test` for running tests
@@ -111,6 +123,7 @@ The service exposes these gRPC methods:
 - `ListRunners` - List all runners with optional filtering
 - `GetRunner` - Get details of a specific runner
 - `ExecuteCommand` - Execute a command in a runner (was ExecuteCode)
+- `ExecuteCommandStream` - Execute a command with real-time stdout/stderr streaming
 
 ## Testing
 
@@ -140,6 +153,10 @@ make test
 - 🚀 Environment setup (`minikube start`)
 - 🚀 Interactive operations
 - 🚀 Port forwarding and network configuration
+
+### Testing Requirements:
+- ⚠️ Before testing gractl commands, always ask user to start grad server with `skaffold dev`
+- ⚠️ Tests that require Kubernetes connectivity will fail without running server
 
 ## Common Tasks
 

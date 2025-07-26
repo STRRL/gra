@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -86,12 +87,22 @@ func (req *PodCreationRequest) ToPodSpec() *corev1.Pod {
 			Name:      req.PodName,
 			Namespace: req.Namespace,
 			Labels: map[string]string{
-				"app":       "grad-runner",
+				"app":                             "grad-runner",
+				"app.kubernetes.io/managed-by":    "grad",
+				"app.kubernetes.io/component":     "runner",
+				"app.kubernetes.io/name":          "grad-runner",
+				"app.kubernetes.io/instance":      req.RunnerID,
 				"type":      "runner",
 				"runner-id": req.RunnerID,
 			},
 			Annotations: map[string]string{
-				"grad.io/runner-name": req.RunnerName,
+				"grad.io/runner-id":     req.RunnerID,
+				"grad.io/runner-name":   req.RunnerName,
+				"grad.io/status":        "creating",
+				"grad.io/created-at":    time.Now().Format(time.RFC3339),
+			},
+			Finalizers: []string{
+				"grad.io/runner-finalizer",
 			},
 		},
 		Spec: corev1.PodSpec{

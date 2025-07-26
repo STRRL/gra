@@ -3,41 +3,30 @@ package service
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
-// runnerService implements the RunnerService interface
+// runnerService implements the RunnerService interface using Kubernetes API
 type runnerService struct {
 	k8sClient *KubernetesClient
-	mu        sync.RWMutex
-
-	// In-memory cache for runner metadata
-	// In production, this could be replaced with a database
-	runners map[string]*Runner
-
-	// Runner ID counter
-	runnerIDCounter int64
 }
 
 // NewRunnerService creates a new runner service
 func NewRunnerService(k8sClient *KubernetesClient) RunnerService {
 	return &runnerService{
 		k8sClient: k8sClient,
-		runners:   make(map[string]*Runner),
 	}
 }
 
 // CreateRunner creates a new runner instance
 func (s *runnerService) CreateRunner(ctx context.Context, req *CreateRunnerRequest) (*Runner, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Generate runner ID
-	s.runnerIDCounter++
-	runnerID := fmt.Sprintf("runner-%d", s.runnerIDCounter)
+	// Generate simple runner ID by counting existing runners
+	runnerID, err := s.generateRunnerID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to generate runner ID: %v", ErrKubernetesAPI, err)
+	}
 
 	// Use provided name or generate one
 	name := req.Name
@@ -52,7 +41,7 @@ func (s *runnerService) CreateRunner(ctx context.Context, req *CreateRunnerReque
 		StorageGB:     RunnerSpecPreset.Small.StorageGB,
 	}
 
-	// Create runner
+	// Create runner object for pod creation
 	runner := &Runner{
 		ID:        runnerID,
 		Name:      name,
@@ -69,35 +58,32 @@ func (s *runnerService) CreateRunner(ctx context.Context, req *CreateRunnerReque
 		Env:       req.Env,
 	}
 
-	// Store runner in cache
-	s.runners[runnerID] = runner
-
-	// Create Kubernetes pod
+	// Create Kubernetes pod with proper annotations and finalizers
 	if err := s.k8sClient.CreateRunnerPod(ctx, runner); err != nil {
-		// Remove from cache if pod creation fails
-		delete(s.runners, runnerID)
 		return nil, fmt.Errorf("%w: %v", ErrKubernetesAPI, err)
 	}
 
-	// Start async status monitoring
-	go s.monitorRunnerStatus(runnerID)
+	// Get the created pod to return accurate information from Kubernetes
+	pod, err := s.k8sClient.GetRunnerPod(ctx, runnerID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to get created pod: %v", ErrKubernetesAPI, err)
+	}
 
-	return runner, nil
+	return PodToRunner(pod), nil
 }
 
-// DeleteRunner removes a runner instance
+// DeleteRunner removes a runner instance with proper finalizer cleanup
 func (s *runnerService) DeleteRunner(ctx context.Context, runnerID string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	runner, exists := s.runners[runnerID]
-	if !exists {
+	// Check if runner pod exists
+	pod, err := s.k8sClient.GetRunnerPod(ctx, runnerID)
+	if err != nil {
 		return ErrRunnerNotFound
 	}
 
-	// Update status to stopping
-	runner.Status = RunnerStatusStopping
-	runner.UpdatedAt = time.Now().Unix()
+	// Remove finalizer to allow Kubernetes to delete the pod
+	if err := s.k8sClient.RemoveRunnerFinalizer(ctx, pod.Name); err != nil {
+		return fmt.Errorf("%w: failed to remove finalizer: %v", ErrKubernetesAPI, err)
+	}
 
 	// Delete Kubernetes pod
 	if err := s.k8sClient.DeleteRunnerPod(ctx, runnerID); err != nil {
@@ -107,26 +93,33 @@ func (s *runnerService) DeleteRunner(ctx context.Context, runnerID string) error
 		}
 	}
 
-	// Start async cleanup
-	go s.cleanupRunner(runnerID)
-
 	return nil
 }
 
-// ListRunners returns all available runners
+// ListRunners returns all available runners by querying Kubernetes API
 func (s *runnerService) ListRunners(ctx context.Context, opts *ListOptions) ([]*Runner, int32, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	// Determine status filter
+	status := RunnerStatusUnspecified
+	if opts != nil {
+		status = opts.Status
+	}
 
-	var runners []*Runner
+	// List runner pods from Kubernetes
+	podList, err := s.k8sClient.ListRunnerPods(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("%w: %v", ErrKubernetesAPI, err)
+	}
 
-	// Filter by status if specified
-	for _, runner := range s.runners {
-		if opts != nil && opts.Status != RunnerStatusUnspecified {
-			if runner.Status != opts.Status {
-				continue
-			}
+	// Convert pods to runners and filter by status
+	runners := make([]*Runner, 0, len(podList.Items))
+	for _, pod := range podList.Items {
+		runner := PodToRunner(&pod)
+
+		// Filter by status if specified
+		if status != RunnerStatusUnspecified && runner.Status != status {
+			continue
 		}
+
 		runners = append(runners, runner)
 	}
 
@@ -154,132 +147,61 @@ func (s *runnerService) ListRunners(ctx context.Context, opts *ListOptions) ([]*
 	return runners, total, nil
 }
 
-// GetRunner returns details about a specific runner
+// GetRunner returns details about a specific runner by querying Kubernetes API
 func (s *runnerService) GetRunner(ctx context.Context, runnerID string) (*Runner, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	runner, exists := s.runners[runnerID]
-	if !exists {
+	// Get runner pod from Kubernetes
+	pod, err := s.k8sClient.GetRunnerPod(ctx, runnerID)
+	if err != nil {
 		return nil, ErrRunnerNotFound
 	}
 
-	// Update runner status from Kubernetes
-	if err := s.updateRunnerStatusFromK8s(ctx, runner); err != nil {
-		// Log error but don't fail the request
-		// In production, you'd use proper logging
-		fmt.Printf("Warning: failed to update runner status: %v\n", err)
-	}
-
-	return runner, nil
+	return PodToRunner(pod), nil
 }
 
-// ExecuteCommand executes a command in a specific runner
-func (s *runnerService) ExecuteCommand(ctx context.Context, req *ExecuteCommandRequest) (*ExecuteCommandResult, error) {
-	s.mu.RLock()
-	runner, exists := s.runners[req.RunnerID]
-	s.mu.RUnlock()
-
-	if !exists {
-		return nil, ErrRunnerNotFound
+// ExecuteCommandStream executes a command in a specific runner with streaming output
+func (s *runnerService) ExecuteCommandStream(ctx context.Context, req *ExecuteCommandRequest, stdoutCh, stderrCh chan<- []byte) (int32, error) {
+	// Check if runner exists and is running
+	pod, err := s.k8sClient.GetRunnerPod(ctx, req.RunnerID)
+	if err != nil {
+		return 1, ErrRunnerNotFound
 	}
 
+	runner := PodToRunner(pod)
 	if runner.Status != RunnerStatusRunning {
-		return nil, ErrRunnerNotRunning
+		return 1, ErrRunnerNotRunning
 	}
 
-	// Execute command via Kubernetes client
-	result, err := s.k8sClient.ExecuteCommand(ctx, req.RunnerID, req.Command)
+	// Execute command via Kubernetes client with streaming
+	exitCode, err := s.k8sClient.ExecuteCommandStream(ctx, req.RunnerID, req.Command, stdoutCh, stderrCh)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrCommandExecution, err)
+		return 1, fmt.Errorf("%w: %v", ErrCommandExecution, err)
 	}
 
-	return result, nil
+	return exitCode, nil
 }
 
-// monitorRunnerStatus monitors runner status in the background
-func (s *runnerService) monitorRunnerStatus(runnerID string) {
-	// Monitor for up to 5 minutes
-	timeout := time.After(5 * time.Minute)
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-timeout:
-			// Timeout reached, set status to error if still creating
-			s.mu.Lock()
-			if runner, exists := s.runners[runnerID]; exists && runner.Status == RunnerStatusCreating {
-				runner.Status = RunnerStatusError
-				runner.UpdatedAt = time.Now().Unix()
-			}
-			s.mu.Unlock()
-			return
-
-		case <-ticker.C:
-			s.mu.Lock()
-			runner, exists := s.runners[runnerID]
-			if !exists {
-				s.mu.Unlock()
-				return
-			}
-
-			// Update status from Kubernetes
-			ctx := context.Background()
-			if err := s.updateRunnerStatusFromK8s(ctx, runner); err != nil {
-				// Continue monitoring on error
-				s.mu.Unlock()
-				continue
-			}
-
-			// Stop monitoring if runner is running or in error state
-			if runner.Status == RunnerStatusRunning || runner.Status == RunnerStatusError {
-				s.mu.Unlock()
-				return
-			}
-			s.mu.Unlock()
-		}
-	}
-}
-
-// cleanupRunner cleans up runner resources after deletion
-func (s *runnerService) cleanupRunner(runnerID string) {
-	// Wait a bit for pod deletion to complete
-	time.Sleep(2 * time.Second)
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Remove from cache
-	delete(s.runners, runnerID)
-}
-
-// updateRunnerStatusFromK8s updates runner status based on pod status
-func (s *runnerService) updateRunnerStatusFromK8s(ctx context.Context, runner *Runner) error {
-	pod, err := s.k8sClient.GetRunnerPod(ctx, runner.ID)
+// generateRunnerID generates a simple incrementing runner ID (runner-1, runner-2, etc.)
+func (s *runnerService) generateRunnerID(ctx context.Context) (string, error) {
+	// List existing runners to find the next available ID
+	podList, err := s.k8sClient.ListRunnerPods(ctx)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			runner.Status = RunnerStatusStopped
-			runner.UpdatedAt = time.Now().Unix()
-			return nil
-		}
-		return err
+		return "", err
 	}
 
-	// Update status based on pod status
-	newStatus := s.k8sClient.GetPodStatus(pod)
-	if newStatus != runner.Status {
-		runner.Status = newStatus
-		runner.UpdatedAt = time.Now().Unix()
-
-		// Update IP address if pod is running
-		if newStatus == RunnerStatusRunning && pod.Status.PodIP != "" {
-			runner.IPAddress = pod.Status.PodIP
-			if runner.SSH != nil {
-				runner.SSH.Host = pod.Status.PodIP
+	maxID := 0
+	for _, pod := range podList.Items {
+		if runnerIDStr, ok := pod.Annotations[RunnerIDAnnotation]; ok {
+			// Extract number from runner-N format
+			if len(runnerIDStr) > 7 && runnerIDStr[:7] == "runner-" {
+				var currentID int
+				if n, parseErr := fmt.Sscanf(runnerIDStr, "runner-%d", &currentID); parseErr == nil && n == 1 {
+					if currentID > maxID {
+						maxID = currentID
+					}
+				}
 			}
 		}
 	}
 
-	return nil
+	return fmt.Sprintf("runner-%d", maxID+1), nil
 }

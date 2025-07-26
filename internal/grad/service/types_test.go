@@ -174,33 +174,6 @@ func TestFromProtoExecuteCommandRequest(t *testing.T) {
 	}
 }
 
-func TestExecuteCommandResultToProto(t *testing.T) {
-	result := &ExecuteCommandResult{
-		Output:     "Hello, World!",
-		Error:      "",
-		ExitCode:   0,
-		DurationMS: 150,
-	}
-
-	proto := result.ToProto()
-
-	if proto.Output != "Hello, World!" {
-		t.Errorf("Expected output 'Hello, World!', got '%s'", proto.Output)
-	}
-
-	if proto.Error != "" {
-		t.Errorf("Expected empty error, got '%s'", proto.Error)
-	}
-
-	if proto.ExitCode != 0 {
-		t.Errorf("Expected exit code 0, got %d", proto.ExitCode)
-	}
-
-	if proto.DurationMs != 150 {
-		t.Errorf("Expected duration 150ms, got %d", proto.DurationMs)
-	}
-}
-
 func TestFromProtoListOptions(t *testing.T) {
 	opts := FromProtoListOptions(gradv1.RunnerStatus_RUNNER_STATUS_RUNNING, 20, 10)
 

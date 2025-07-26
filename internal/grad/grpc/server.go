@@ -92,24 +92,99 @@ func (s *Server) ListRunners(ctx context.Context, req *gradv1.ListRunnersRequest
 	}, nil
 }
 
-// ExecuteCommand executes a command in a specific runner
-func (s *Server) ExecuteCommand(ctx context.Context, req *gradv1.ExecuteCommandRequest) (*gradv1.ExecuteCommandResponse, error) {
+// ExecuteCommandStream executes a command in a specific runner with streaming output
+func (s *Server) ExecuteCommandStream(req *gradv1.ExecuteCommandRequest, stream gradv1.RunnerService_ExecuteCommandStreamServer) error {
 	// Validate request
 	if err := s.validateExecuteCommandRequest(req); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid request: %v", err)
+		return status.Errorf(codes.InvalidArgument, "invalid request: %v", err)
 	}
 
 	// Convert proto request to domain request
 	domainReq := service.FromProtoExecuteCommandRequest(req)
 
-	// Call service layer
-	result, err := s.runnerService.ExecuteCommand(ctx, domainReq)
-	if err != nil {
-		return nil, s.mapServiceError(err)
-	}
+	// Create channels for streaming
+	// Note: stdoutCh and stderrCh will be closed by the sender (Kubernetes layer)
+	stdoutCh := make(chan []byte, 100)
+	stderrCh := make(chan []byte, 100)
+	
+	// exitCh and errCh are owned by this gRPC layer
+	exitCh := make(chan int32, 1)
+	errCh := make(chan error, 1)
 
-	// Convert domain result to proto response
-	return result.ToProto(), nil
+	// Start command execution in a goroutine
+	go func() {
+		// Only close channels that this goroutine owns/sends to
+		defer close(exitCh)
+		defer close(errCh)
+
+		exitCode, err := s.runnerService.ExecuteCommandStream(stream.Context(), domainReq, stdoutCh, stderrCh)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		exitCh <- exitCode
+	}()
+
+	// Stream the output
+	for {
+		select {
+		case data, ok := <-stdoutCh:
+			if !ok {
+				stdoutCh = nil
+				continue
+			}
+			if len(data) > 0 {
+				if err := stream.Send(&gradv1.ExecuteCommandStreamResponse{
+					Type: gradv1.StreamType_STREAM_TYPE_STDOUT,
+					Data: data,
+				}); err != nil {
+					return err
+				}
+			}
+
+		case data, ok := <-stderrCh:
+			if !ok {
+				stderrCh = nil
+				continue
+			}
+			if len(data) > 0 {
+				if err := stream.Send(&gradv1.ExecuteCommandStreamResponse{
+					Type: gradv1.StreamType_STREAM_TYPE_STDERR,
+					Data: data,
+				}); err != nil {
+					return err
+				}
+			}
+
+		case exitCode := <-exitCh:
+			// Send final exit message
+			return stream.Send(&gradv1.ExecuteCommandStreamResponse{
+				Type:     gradv1.StreamType_STREAM_TYPE_EXIT,
+				ExitCode: exitCode,
+			})
+
+		case err := <-errCh:
+			return s.mapServiceError(err)
+
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		}
+
+		// If both stdout and stderr channels are closed, wait for exit
+		if stdoutCh == nil && stderrCh == nil {
+			select {
+			case exitCode := <-exitCh:
+				return stream.Send(&gradv1.ExecuteCommandStreamResponse{
+					Type:     gradv1.StreamType_STREAM_TYPE_EXIT,
+					ExitCode: exitCode,
+				})
+			case err := <-errCh:
+				return s.mapServiceError(err)
+			case <-stream.Context().Done():
+				return stream.Context().Err()
+			}
+		}
+	}
 }
 
 // GetRunner returns details about a specific runner

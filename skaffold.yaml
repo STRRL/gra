@@ -17,15 +17,12 @@ build:
           CGO_ENABLED: "0"
           GOOS: "linux"
           GOARCH: "amd64"
-      sync:
-        auto: true
     
     # Runner container (pre-built for dynamic creation by grad)
     - image: grad-runner
       context: .
       docker:
         dockerfile: devenv/runner/Dockerfile
-
 
 # Manifest configuration
 manifests:

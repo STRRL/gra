@@ -1,4 +1,4 @@
-.PHONY: build build-grad build-gractl clean test help minikube-start minikube-stop minikube-status dev dev-stop dev-debug
+.PHONY: build build-grad build-gractl clean test generate help minikube-start minikube-stop minikube-status dev dev-stop dev-debug
 
 # Build configuration
 OUT_DIR=out
@@ -53,6 +53,10 @@ clean:
 test:
 	go test ./...
 
+# Generate protobuf code
+generate:
+	buf generate
+
 # Minikube management
 minikube-start:
 	@echo "Starting minikube with 4C16G configuration..."
@@ -97,6 +101,7 @@ help:
 	@echo "  build-all   - Build for all platforms"
 	@echo "  clean       - Clean build artifacts"
 	@echo "  test        - Run tests"
+	@echo "  generate    - Generate protobuf code using buf"
 	@echo ""
 	@echo "Development targets:"
 	@echo "  minikube-start   - Start minikube with 4C16G config"

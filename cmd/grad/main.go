@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -87,8 +88,21 @@ func runServers() {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
+	// Initialize structured logger
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
+
 	// Load configuration
 	config := service.LoadConfig()
+
+	// Log current runner image configuration
+	slog.Info("Starting grad service",
+		"runner_image", config.Kubernetes.RunnerImage,
+		"http_port", httpPort,
+		"grpc_port", grpcPort,
+	)
 
 	// Initialize Kubernetes client
 	k8sClient, err := service.NewKubernetesClient(config.Kubernetes)
@@ -119,7 +133,7 @@ func runServers() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
 
-	log.Println("Shutting down grad services...")
+	slog.Info("Shutting down grad services...")
 
 	// Graceful shutdown context
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -128,7 +142,7 @@ func runServers() {
 	// Shutdown both servers (we'll add this logic)
 	shutdownServers(ctx)
 
-	log.Println("grad services stopped")
+	slog.Info("grad services stopped")
 }
 
 func runHTTPServer() {
@@ -160,9 +174,9 @@ func runHTTPServer() {
 		Handler: r,
 	}
 
-	log.Printf("HTTP server starting on port %s", httpPort)
+	slog.Info("HTTP server starting", "port", httpPort)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Printf("HTTP server error: %v", err)
+		slog.Error("HTTP server error", "error", err)
 	}
 }
 
@@ -178,9 +192,9 @@ func runGRPCServer(srv *grpcserver.Server) {
 	// Enable reflection for grpcurl and other tools
 	reflection.Register(grpcServer)
 
-	log.Printf("gRPC server starting on port %s", grpcPort)
+	slog.Info("gRPC server starting", "port", grpcPort)
 	if err := grpcServer.Serve(lis); err != nil {
-		log.Printf("gRPC server error: %v", err)
+		slog.Error("gRPC server error", "error", err)
 	}
 }
 
@@ -188,7 +202,7 @@ func shutdownServers(ctx context.Context) {
 	// For now, we'll implement basic shutdown
 	// In a production environment, you'd want to properly handle
 	// graceful shutdown of both HTTP and gRPC servers
-	log.Println("Server shutdown logic would be implemented here")
+	slog.Info("Server shutdown logic would be implemented here")
 }
 
 func prometheusMiddleware() gin.HandlerFunc {

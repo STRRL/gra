@@ -46,14 +46,21 @@ func TestRunnerServiceBasics(t *testing.T) {
 		t.Errorf("Expected runner name 'test-runner', got '%s'", runner.Name)
 	}
 
-	if runner.Resources.CPUMillicores != 500 {
-		t.Errorf("Expected CPU millicores 500, got %d", runner.Resources.CPUMillicores)
+	// Note: Resources now use hardcoded "small" preset (2c2g40g), not request values
+	if runner.Resources.CPUMillicores != RunnerSpecPreset.Small.CPUMillicores {
+		t.Errorf("Expected CPU millicores %d (small preset), got %d", RunnerSpecPreset.Small.CPUMillicores, runner.Resources.CPUMillicores)
 	}
 
 	// Test getting the runner
 	retrieved, err := service.GetRunner(ctx, runner.ID)
 	if err != nil {
 		t.Errorf("Failed to get runner: %v", err)
+		return
+	}
+
+	if retrieved == nil {
+		t.Error("Retrieved runner is nil")
+		return
 	}
 
 	if retrieved.ID != runner.ID {

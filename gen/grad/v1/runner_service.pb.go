@@ -21,6 +21,59 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// StreamType indicates the type of streaming data
+type StreamType int32
+
+const (
+	StreamType_STREAM_TYPE_UNSPECIFIED StreamType = 0
+	StreamType_STREAM_TYPE_STDOUT      StreamType = 1
+	StreamType_STREAM_TYPE_STDERR      StreamType = 2
+	StreamType_STREAM_TYPE_EXIT        StreamType = 3
+)
+
+// Enum value maps for StreamType.
+var (
+	StreamType_name = map[int32]string{
+		0: "STREAM_TYPE_UNSPECIFIED",
+		1: "STREAM_TYPE_STDOUT",
+		2: "STREAM_TYPE_STDERR",
+		3: "STREAM_TYPE_EXIT",
+	}
+	StreamType_value = map[string]int32{
+		"STREAM_TYPE_UNSPECIFIED": 0,
+		"STREAM_TYPE_STDOUT":      1,
+		"STREAM_TYPE_STDERR":      2,
+		"STREAM_TYPE_EXIT":        3,
+	}
+)
+
+func (x StreamType) Enum() *StreamType {
+	p := new(StreamType)
+	*p = x
+	return p
+}
+
+func (x StreamType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StreamType) Descriptor() protoreflect.EnumDescriptor {
+	return file_grad_v1_runner_service_proto_enumTypes[0].Descriptor()
+}
+
+func (StreamType) Type() protoreflect.EnumType {
+	return &file_grad_v1_runner_service_proto_enumTypes[0]
+}
+
+func (x StreamType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StreamType.Descriptor instead.
+func (StreamType) EnumDescriptor() ([]byte, []int) {
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{0}
+}
+
 // RunnerStatus represents the status of a runner
 type RunnerStatus int32
 
@@ -64,11 +117,11 @@ func (x RunnerStatus) String() string {
 }
 
 func (RunnerStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_grad_v1_runner_service_proto_enumTypes[0].Descriptor()
+	return file_grad_v1_runner_service_proto_enumTypes[1].Descriptor()
 }
 
 func (RunnerStatus) Type() protoreflect.EnumType {
-	return &file_grad_v1_runner_service_proto_enumTypes[0]
+	return &file_grad_v1_runner_service_proto_enumTypes[1]
 }
 
 func (x RunnerStatus) Number() protoreflect.EnumNumber {
@@ -77,7 +130,7 @@ func (x RunnerStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RunnerStatus.Descriptor instead.
 func (RunnerStatus) EnumDescriptor() ([]byte, []int) {
-	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{0}
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{1}
 }
 
 // CreateRunnerRequest defines the request to create a new runner
@@ -474,35 +527,33 @@ func (x *ExecuteCommandRequest) GetWorkingDir() string {
 	return ""
 }
 
-// ExecuteCommandResponse defines the response after command execution
-type ExecuteCommandResponse struct {
+// ExecuteCommandStreamResponse defines streaming response for command execution
+type ExecuteCommandStreamResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Execution output (stdout)
-	Output string `protobuf:"bytes,1,opt,name=output,proto3" json:"output,omitempty"`
-	// Error output (stderr)
-	Error string `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
-	// Exit code of the execution
-	ExitCode int32 `protobuf:"varint,3,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
-	// Execution duration (in milliseconds)
-	DurationMs    int64 `protobuf:"varint,4,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	// Type of data being streamed
+	Type StreamType `protobuf:"varint,1,opt,name=type,proto3,enum=grad.v1.StreamType" json:"type,omitempty"`
+	// Data content (stdout/stderr)
+	Data []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	// Exit code (only present in final message when type = EXIT)
+	ExitCode      int32 `protobuf:"varint,3,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ExecuteCommandResponse) Reset() {
-	*x = ExecuteCommandResponse{}
+func (x *ExecuteCommandStreamResponse) Reset() {
+	*x = ExecuteCommandStreamResponse{}
 	mi := &file_grad_v1_runner_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ExecuteCommandResponse) String() string {
+func (x *ExecuteCommandStreamResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ExecuteCommandResponse) ProtoMessage() {}
+func (*ExecuteCommandStreamResponse) ProtoMessage() {}
 
-func (x *ExecuteCommandResponse) ProtoReflect() protoreflect.Message {
+func (x *ExecuteCommandStreamResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_grad_v1_runner_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -514,35 +565,28 @@ func (x *ExecuteCommandResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ExecuteCommandResponse.ProtoReflect.Descriptor instead.
-func (*ExecuteCommandResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExecuteCommandStreamResponse.ProtoReflect.Descriptor instead.
+func (*ExecuteCommandStreamResponse) Descriptor() ([]byte, []int) {
 	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *ExecuteCommandResponse) GetOutput() string {
+func (x *ExecuteCommandStreamResponse) GetType() StreamType {
 	if x != nil {
-		return x.Output
+		return x.Type
 	}
-	return ""
+	return StreamType_STREAM_TYPE_UNSPECIFIED
 }
 
-func (x *ExecuteCommandResponse) GetError() string {
+func (x *ExecuteCommandStreamResponse) GetData() []byte {
 	if x != nil {
-		return x.Error
+		return x.Data
 	}
-	return ""
+	return nil
 }
 
-func (x *ExecuteCommandResponse) GetExitCode() int32 {
+func (x *ExecuteCommandStreamResponse) GetExitCode() int32 {
 	if x != nil {
 		return x.ExitCode
-	}
-	return 0
-}
-
-func (x *ExecuteCommandResponse) GetDurationMs() int64 {
-	if x != nil {
-		return x.DurationMs
 	}
 	return 0
 }
@@ -924,13 +968,11 @@ const file_grad_v1_runner_service_proto_rawDesc = "" +
 	"\x05shell\x18\x03 \x01(\tR\x05shell\x12\x18\n" +
 	"\atimeout\x18\x04 \x01(\x05R\atimeout\x12\x1f\n" +
 	"\vworking_dir\x18\x05 \x01(\tR\n" +
-	"workingDir\"\x84\x01\n" +
-	"\x16ExecuteCommandResponse\x12\x16\n" +
-	"\x06output\x18\x01 \x01(\tR\x06output\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\x12\x1b\n" +
-	"\texit_code\x18\x03 \x01(\x05R\bexitCode\x12\x1f\n" +
-	"\vduration_ms\x18\x04 \x01(\x03R\n" +
-	"durationMs\"/\n" +
+	"workingDir\"x\n" +
+	"\x1cExecuteCommandStreamResponse\x12'\n" +
+	"\x04type\x18\x01 \x01(\x0e2\x13.grad.v1.StreamTypeR\x04type\x12\x12\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\x12\x1b\n" +
+	"\texit_code\x18\x03 \x01(\x05R\bexitCode\"/\n" +
 	"\x10GetRunnerRequest\x12\x1b\n" +
 	"\trunner_id\x18\x01 \x01(\tR\brunnerId\"<\n" +
 	"\x11GetRunnerResponse\x12'\n" +
@@ -962,19 +1004,25 @@ const file_grad_v1_runner_service_proto_rawDesc = "" +
 	"\x04port\x18\x02 \x01(\x05R\x04port\x12\x1a\n" +
 	"\busername\x18\x03 \x01(\tR\busername\x12\x1d\n" +
 	"\n" +
-	"public_key\x18\x04 \x01(\tR\tpublicKey*\xb4\x01\n" +
+	"public_key\x18\x04 \x01(\tR\tpublicKey*o\n" +
+	"\n" +
+	"StreamType\x12\x1b\n" +
+	"\x17STREAM_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12STREAM_TYPE_STDOUT\x10\x01\x12\x16\n" +
+	"\x12STREAM_TYPE_STDERR\x10\x02\x12\x14\n" +
+	"\x10STREAM_TYPE_EXIT\x10\x03*\xb4\x01\n" +
 	"\fRunnerStatus\x12\x1d\n" +
 	"\x19RUNNER_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16RUNNER_STATUS_CREATING\x10\x01\x12\x19\n" +
 	"\x15RUNNER_STATUS_RUNNING\x10\x02\x12\x1a\n" +
 	"\x16RUNNER_STATUS_STOPPING\x10\x03\x12\x19\n" +
 	"\x15RUNNER_STATUS_STOPPED\x10\x04\x12\x17\n" +
-	"\x13RUNNER_STATUS_ERROR\x10\x052\x8a\x03\n" +
+	"\x13RUNNER_STATUS_ERROR\x10\x052\x98\x03\n" +
 	"\rRunnerService\x12K\n" +
 	"\fCreateRunner\x12\x1c.grad.v1.CreateRunnerRequest\x1a\x1d.grad.v1.CreateRunnerResponse\x12K\n" +
 	"\fDeleteRunner\x12\x1c.grad.v1.DeleteRunnerRequest\x1a\x1d.grad.v1.DeleteRunnerResponse\x12H\n" +
-	"\vListRunners\x12\x1b.grad.v1.ListRunnersRequest\x1a\x1c.grad.v1.ListRunnersResponse\x12Q\n" +
-	"\x0eExecuteCommand\x12\x1e.grad.v1.ExecuteCommandRequest\x1a\x1f.grad.v1.ExecuteCommandResponse\x12B\n" +
+	"\vListRunners\x12\x1b.grad.v1.ListRunnersRequest\x1a\x1c.grad.v1.ListRunnersResponse\x12_\n" +
+	"\x14ExecuteCommandStream\x12\x1e.grad.v1.ExecuteCommandRequest\x1a%.grad.v1.ExecuteCommandStreamResponse0\x01\x12B\n" +
 	"\tGetRunner\x12\x19.grad.v1.GetRunnerRequest\x1a\x1a.grad.v1.GetRunnerResponseB\x87\x01\n" +
 	"\vcom.grad.v1B\x12RunnerServiceProtoP\x01Z'github.com/strrl/gra/gen/grad/v1;gradv1\xa2\x02\x03GXX\xaa\x02\aGrad.V1\xca\x02\aGrad\\V1\xe2\x02\x13Grad\\V1\\GPBMetadata\xea\x02\bGrad::V1b\x06proto3"
 
@@ -990,51 +1038,53 @@ func file_grad_v1_runner_service_proto_rawDescGZIP() []byte {
 	return file_grad_v1_runner_service_proto_rawDescData
 }
 
-var file_grad_v1_runner_service_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_grad_v1_runner_service_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_grad_v1_runner_service_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_grad_v1_runner_service_proto_goTypes = []any{
-	(RunnerStatus)(0),              // 0: grad.v1.RunnerStatus
-	(*CreateRunnerRequest)(nil),    // 1: grad.v1.CreateRunnerRequest
-	(*CreateRunnerResponse)(nil),   // 2: grad.v1.CreateRunnerResponse
-	(*DeleteRunnerRequest)(nil),    // 3: grad.v1.DeleteRunnerRequest
-	(*DeleteRunnerResponse)(nil),   // 4: grad.v1.DeleteRunnerResponse
-	(*ListRunnersRequest)(nil),     // 5: grad.v1.ListRunnersRequest
-	(*ListRunnersResponse)(nil),    // 6: grad.v1.ListRunnersResponse
-	(*ExecuteCommandRequest)(nil),  // 7: grad.v1.ExecuteCommandRequest
-	(*ExecuteCommandResponse)(nil), // 8: grad.v1.ExecuteCommandResponse
-	(*GetRunnerRequest)(nil),       // 9: grad.v1.GetRunnerRequest
-	(*GetRunnerResponse)(nil),      // 10: grad.v1.GetRunnerResponse
-	(*Runner)(nil),                 // 11: grad.v1.Runner
-	(*ResourceRequirements)(nil),   // 12: grad.v1.ResourceRequirements
-	(*SSHDetails)(nil),             // 13: grad.v1.SSHDetails
-	nil,                            // 14: grad.v1.CreateRunnerRequest.EnvEntry
-	nil,                            // 15: grad.v1.Runner.EnvEntry
+	(StreamType)(0),                      // 0: grad.v1.StreamType
+	(RunnerStatus)(0),                    // 1: grad.v1.RunnerStatus
+	(*CreateRunnerRequest)(nil),          // 2: grad.v1.CreateRunnerRequest
+	(*CreateRunnerResponse)(nil),         // 3: grad.v1.CreateRunnerResponse
+	(*DeleteRunnerRequest)(nil),          // 4: grad.v1.DeleteRunnerRequest
+	(*DeleteRunnerResponse)(nil),         // 5: grad.v1.DeleteRunnerResponse
+	(*ListRunnersRequest)(nil),           // 6: grad.v1.ListRunnersRequest
+	(*ListRunnersResponse)(nil),          // 7: grad.v1.ListRunnersResponse
+	(*ExecuteCommandRequest)(nil),        // 8: grad.v1.ExecuteCommandRequest
+	(*ExecuteCommandStreamResponse)(nil), // 9: grad.v1.ExecuteCommandStreamResponse
+	(*GetRunnerRequest)(nil),             // 10: grad.v1.GetRunnerRequest
+	(*GetRunnerResponse)(nil),            // 11: grad.v1.GetRunnerResponse
+	(*Runner)(nil),                       // 12: grad.v1.Runner
+	(*ResourceRequirements)(nil),         // 13: grad.v1.ResourceRequirements
+	(*SSHDetails)(nil),                   // 14: grad.v1.SSHDetails
+	nil,                                  // 15: grad.v1.CreateRunnerRequest.EnvEntry
+	nil,                                  // 16: grad.v1.Runner.EnvEntry
 }
 var file_grad_v1_runner_service_proto_depIdxs = []int32{
-	14, // 0: grad.v1.CreateRunnerRequest.env:type_name -> grad.v1.CreateRunnerRequest.EnvEntry
-	11, // 1: grad.v1.CreateRunnerResponse.runner:type_name -> grad.v1.Runner
-	0,  // 2: grad.v1.ListRunnersRequest.status:type_name -> grad.v1.RunnerStatus
-	11, // 3: grad.v1.ListRunnersResponse.runners:type_name -> grad.v1.Runner
-	11, // 4: grad.v1.GetRunnerResponse.runner:type_name -> grad.v1.Runner
-	0,  // 5: grad.v1.Runner.status:type_name -> grad.v1.RunnerStatus
-	12, // 6: grad.v1.Runner.resources:type_name -> grad.v1.ResourceRequirements
-	13, // 7: grad.v1.Runner.ssh:type_name -> grad.v1.SSHDetails
-	15, // 8: grad.v1.Runner.env:type_name -> grad.v1.Runner.EnvEntry
-	1,  // 9: grad.v1.RunnerService.CreateRunner:input_type -> grad.v1.CreateRunnerRequest
-	3,  // 10: grad.v1.RunnerService.DeleteRunner:input_type -> grad.v1.DeleteRunnerRequest
-	5,  // 11: grad.v1.RunnerService.ListRunners:input_type -> grad.v1.ListRunnersRequest
-	7,  // 12: grad.v1.RunnerService.ExecuteCommand:input_type -> grad.v1.ExecuteCommandRequest
-	9,  // 13: grad.v1.RunnerService.GetRunner:input_type -> grad.v1.GetRunnerRequest
-	2,  // 14: grad.v1.RunnerService.CreateRunner:output_type -> grad.v1.CreateRunnerResponse
-	4,  // 15: grad.v1.RunnerService.DeleteRunner:output_type -> grad.v1.DeleteRunnerResponse
-	6,  // 16: grad.v1.RunnerService.ListRunners:output_type -> grad.v1.ListRunnersResponse
-	8,  // 17: grad.v1.RunnerService.ExecuteCommand:output_type -> grad.v1.ExecuteCommandResponse
-	10, // 18: grad.v1.RunnerService.GetRunner:output_type -> grad.v1.GetRunnerResponse
-	14, // [14:19] is the sub-list for method output_type
-	9,  // [9:14] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	15, // 0: grad.v1.CreateRunnerRequest.env:type_name -> grad.v1.CreateRunnerRequest.EnvEntry
+	12, // 1: grad.v1.CreateRunnerResponse.runner:type_name -> grad.v1.Runner
+	1,  // 2: grad.v1.ListRunnersRequest.status:type_name -> grad.v1.RunnerStatus
+	12, // 3: grad.v1.ListRunnersResponse.runners:type_name -> grad.v1.Runner
+	0,  // 4: grad.v1.ExecuteCommandStreamResponse.type:type_name -> grad.v1.StreamType
+	12, // 5: grad.v1.GetRunnerResponse.runner:type_name -> grad.v1.Runner
+	1,  // 6: grad.v1.Runner.status:type_name -> grad.v1.RunnerStatus
+	13, // 7: grad.v1.Runner.resources:type_name -> grad.v1.ResourceRequirements
+	14, // 8: grad.v1.Runner.ssh:type_name -> grad.v1.SSHDetails
+	16, // 9: grad.v1.Runner.env:type_name -> grad.v1.Runner.EnvEntry
+	2,  // 10: grad.v1.RunnerService.CreateRunner:input_type -> grad.v1.CreateRunnerRequest
+	4,  // 11: grad.v1.RunnerService.DeleteRunner:input_type -> grad.v1.DeleteRunnerRequest
+	6,  // 12: grad.v1.RunnerService.ListRunners:input_type -> grad.v1.ListRunnersRequest
+	8,  // 13: grad.v1.RunnerService.ExecuteCommandStream:input_type -> grad.v1.ExecuteCommandRequest
+	10, // 14: grad.v1.RunnerService.GetRunner:input_type -> grad.v1.GetRunnerRequest
+	3,  // 15: grad.v1.RunnerService.CreateRunner:output_type -> grad.v1.CreateRunnerResponse
+	5,  // 16: grad.v1.RunnerService.DeleteRunner:output_type -> grad.v1.DeleteRunnerResponse
+	7,  // 17: grad.v1.RunnerService.ListRunners:output_type -> grad.v1.ListRunnersResponse
+	9,  // 18: grad.v1.RunnerService.ExecuteCommandStream:output_type -> grad.v1.ExecuteCommandStreamResponse
+	11, // 19: grad.v1.RunnerService.GetRunner:output_type -> grad.v1.GetRunnerResponse
+	15, // [15:20] is the sub-list for method output_type
+	10, // [10:15] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_grad_v1_runner_service_proto_init() }
@@ -1047,7 +1097,7 @@ func file_grad_v1_runner_service_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_grad_v1_runner_service_proto_rawDesc), len(file_grad_v1_runner_service_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,

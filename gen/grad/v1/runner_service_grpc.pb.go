@@ -19,11 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	RunnerService_CreateRunner_FullMethodName   = "/grad.v1.RunnerService/CreateRunner"
-	RunnerService_DeleteRunner_FullMethodName   = "/grad.v1.RunnerService/DeleteRunner"
-	RunnerService_ListRunners_FullMethodName    = "/grad.v1.RunnerService/ListRunners"
-	RunnerService_ExecuteCommand_FullMethodName = "/grad.v1.RunnerService/ExecuteCommand"
-	RunnerService_GetRunner_FullMethodName      = "/grad.v1.RunnerService/GetRunner"
+	RunnerService_CreateRunner_FullMethodName         = "/grad.v1.RunnerService/CreateRunner"
+	RunnerService_DeleteRunner_FullMethodName         = "/grad.v1.RunnerService/DeleteRunner"
+	RunnerService_ListRunners_FullMethodName          = "/grad.v1.RunnerService/ListRunners"
+	RunnerService_ExecuteCommandStream_FullMethodName = "/grad.v1.RunnerService/ExecuteCommandStream"
+	RunnerService_GetRunner_FullMethodName            = "/grad.v1.RunnerService/GetRunner"
 )
 
 // RunnerServiceClient is the client API for RunnerService service.
@@ -38,8 +38,8 @@ type RunnerServiceClient interface {
 	DeleteRunner(ctx context.Context, in *DeleteRunnerRequest, opts ...grpc.CallOption) (*DeleteRunnerResponse, error)
 	// ListRunners returns all available runners
 	ListRunners(ctx context.Context, in *ListRunnersRequest, opts ...grpc.CallOption) (*ListRunnersResponse, error)
-	// ExecuteCommand executes a command in a specific runner
-	ExecuteCommand(ctx context.Context, in *ExecuteCommandRequest, opts ...grpc.CallOption) (*ExecuteCommandResponse, error)
+	// ExecuteCommandStream executes a command in a specific runner with streaming output
+	ExecuteCommandStream(ctx context.Context, in *ExecuteCommandRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ExecuteCommandStreamResponse], error)
 	// GetRunner returns details about a specific runner
 	GetRunner(ctx context.Context, in *GetRunnerRequest, opts ...grpc.CallOption) (*GetRunnerResponse, error)
 }
@@ -82,15 +82,24 @@ func (c *runnerServiceClient) ListRunners(ctx context.Context, in *ListRunnersRe
 	return out, nil
 }
 
-func (c *runnerServiceClient) ExecuteCommand(ctx context.Context, in *ExecuteCommandRequest, opts ...grpc.CallOption) (*ExecuteCommandResponse, error) {
+func (c *runnerServiceClient) ExecuteCommandStream(ctx context.Context, in *ExecuteCommandRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ExecuteCommandStreamResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ExecuteCommandResponse)
-	err := c.cc.Invoke(ctx, RunnerService_ExecuteCommand_FullMethodName, in, out, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &RunnerService_ServiceDesc.Streams[0], RunnerService_ExecuteCommandStream_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &grpc.GenericClientStream[ExecuteCommandRequest, ExecuteCommandStreamResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type RunnerService_ExecuteCommandStreamClient = grpc.ServerStreamingClient[ExecuteCommandStreamResponse]
 
 func (c *runnerServiceClient) GetRunner(ctx context.Context, in *GetRunnerRequest, opts ...grpc.CallOption) (*GetRunnerResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -114,8 +123,8 @@ type RunnerServiceServer interface {
 	DeleteRunner(context.Context, *DeleteRunnerRequest) (*DeleteRunnerResponse, error)
 	// ListRunners returns all available runners
 	ListRunners(context.Context, *ListRunnersRequest) (*ListRunnersResponse, error)
-	// ExecuteCommand executes a command in a specific runner
-	ExecuteCommand(context.Context, *ExecuteCommandRequest) (*ExecuteCommandResponse, error)
+	// ExecuteCommandStream executes a command in a specific runner with streaming output
+	ExecuteCommandStream(*ExecuteCommandRequest, grpc.ServerStreamingServer[ExecuteCommandStreamResponse]) error
 	// GetRunner returns details about a specific runner
 	GetRunner(context.Context, *GetRunnerRequest) (*GetRunnerResponse, error)
 	mustEmbedUnimplementedRunnerServiceServer()
@@ -137,8 +146,8 @@ func (UnimplementedRunnerServiceServer) DeleteRunner(context.Context, *DeleteRun
 func (UnimplementedRunnerServiceServer) ListRunners(context.Context, *ListRunnersRequest) (*ListRunnersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListRunners not implemented")
 }
-func (UnimplementedRunnerServiceServer) ExecuteCommand(context.Context, *ExecuteCommandRequest) (*ExecuteCommandResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ExecuteCommand not implemented")
+func (UnimplementedRunnerServiceServer) ExecuteCommandStream(*ExecuteCommandRequest, grpc.ServerStreamingServer[ExecuteCommandStreamResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method ExecuteCommandStream not implemented")
 }
 func (UnimplementedRunnerServiceServer) GetRunner(context.Context, *GetRunnerRequest) (*GetRunnerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetRunner not implemented")
@@ -218,23 +227,16 @@ func _RunnerService_ListRunners_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RunnerService_ExecuteCommand_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ExecuteCommandRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _RunnerService_ExecuteCommandStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ExecuteCommandRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(RunnerServiceServer).ExecuteCommand(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RunnerService_ExecuteCommand_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RunnerServiceServer).ExecuteCommand(ctx, req.(*ExecuteCommandRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(RunnerServiceServer).ExecuteCommandStream(m, &grpc.GenericServerStream[ExecuteCommandRequest, ExecuteCommandStreamResponse]{ServerStream: stream})
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type RunnerService_ExecuteCommandStreamServer = grpc.ServerStreamingServer[ExecuteCommandStreamResponse]
 
 func _RunnerService_GetRunner_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetRunnerRequest)
@@ -274,14 +276,16 @@ var RunnerService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _RunnerService_ListRunners_Handler,
 		},
 		{
-			MethodName: "ExecuteCommand",
-			Handler:    _RunnerService_ExecuteCommand_Handler,
-		},
-		{
 			MethodName: "GetRunner",
 			Handler:    _RunnerService_GetRunner_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "ExecuteCommandStream",
+			Handler:       _RunnerService_ExecuteCommandStream_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "grad/v1/runner_service.proto",
 }

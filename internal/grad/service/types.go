@@ -45,15 +45,15 @@ type Runner struct {
 }
 
 // RunnerStatus represents the status of a runner
-type RunnerStatus int
+type RunnerStatus string
 
 const (
-	RunnerStatusUnspecified RunnerStatus = iota
-	RunnerStatusCreating
-	RunnerStatusRunning
-	RunnerStatusStopping
-	RunnerStatusStopped
-	RunnerStatusError
+	RunnerStatusUnspecified RunnerStatus = ""
+	RunnerStatusCreating    RunnerStatus = "creating"
+	RunnerStatusRunning     RunnerStatus = "running"
+	RunnerStatusStopping    RunnerStatus = "stopping"
+	RunnerStatusStopped     RunnerStatus = "stopped"
+	RunnerStatusError       RunnerStatus = "error"
 )
 
 // SSHDetails contains SSH connection information
@@ -73,13 +73,6 @@ type ExecuteCommandRequest struct {
 	WorkingDir string
 }
 
-// ExecuteCommandResult represents the result of command execution
-type ExecuteCommandResult struct {
-	Output     string
-	Error      string
-	ExitCode   int32
-	DurationMS int64
-}
 
 // ListOptions represents options for listing runners
 type ListOptions struct {
@@ -94,7 +87,7 @@ type RunnerService interface {
 	DeleteRunner(ctx context.Context, runnerID string) error
 	ListRunners(ctx context.Context, opts *ListOptions) ([]*Runner, int32, error)
 	GetRunner(ctx context.Context, runnerID string) (*Runner, error)
-	ExecuteCommand(ctx context.Context, req *ExecuteCommandRequest) (*ExecuteCommandResult, error)
+	ExecuteCommandStream(ctx context.Context, req *ExecuteCommandRequest, stdoutCh, stderrCh chan<- []byte) (int32, error)
 }
 
 // Conversion functions between domain and proto types
@@ -104,7 +97,7 @@ func (r *Runner) ToProto() *gradv1.Runner {
 	return &gradv1.Runner{
 		Id:        r.ID,
 		Name:      r.Name,
-		Status:    gradv1.RunnerStatus(r.Status),
+		Status:    r.Status.ToProto(),
 		Resources: r.Resources.ToProto(),
 		CreatedAt: r.CreatedAt,
 		UpdatedAt: r.UpdatedAt,
@@ -171,21 +164,52 @@ func FromProtoExecuteCommandRequest(req *gradv1.ExecuteCommandRequest) *ExecuteC
 	}
 }
 
-// ToProtoExecuteCommandResponse converts domain result to proto response
-func (ecr *ExecuteCommandResult) ToProto() *gradv1.ExecuteCommandResponse {
-	return &gradv1.ExecuteCommandResponse{
-		Output:     ecr.Output,
-		Error:      ecr.Error,
-		ExitCode:   ecr.ExitCode,
-		DurationMs: ecr.DurationMS,
-	}
-}
 
 // FromProtoListOptions converts proto list options to domain
 func FromProtoListOptions(status gradv1.RunnerStatus, limit, offset int32) *ListOptions {
 	return &ListOptions{
-		Status: RunnerStatus(status),
+		Status: RunnerStatusFromProto(status),
 		Limit:  limit,
 		Offset: offset,
+	}
+}
+
+// ToProto converts domain RunnerStatus to proto RunnerStatus
+func (rs RunnerStatus) ToProto() gradv1.RunnerStatus {
+	switch rs {
+	case RunnerStatusUnspecified:
+		return gradv1.RunnerStatus_RUNNER_STATUS_UNSPECIFIED
+	case RunnerStatusCreating:
+		return gradv1.RunnerStatus_RUNNER_STATUS_CREATING
+	case RunnerStatusRunning:
+		return gradv1.RunnerStatus_RUNNER_STATUS_RUNNING
+	case RunnerStatusStopping:
+		return gradv1.RunnerStatus_RUNNER_STATUS_STOPPING
+	case RunnerStatusStopped:
+		return gradv1.RunnerStatus_RUNNER_STATUS_STOPPED
+	case RunnerStatusError:
+		return gradv1.RunnerStatus_RUNNER_STATUS_ERROR
+	default:
+		return gradv1.RunnerStatus_RUNNER_STATUS_UNSPECIFIED
+	}
+}
+
+// RunnerStatusFromProto converts proto RunnerStatus to domain RunnerStatus
+func RunnerStatusFromProto(status gradv1.RunnerStatus) RunnerStatus {
+	switch status {
+	case gradv1.RunnerStatus_RUNNER_STATUS_UNSPECIFIED:
+		return RunnerStatusUnspecified
+	case gradv1.RunnerStatus_RUNNER_STATUS_CREATING:
+		return RunnerStatusCreating
+	case gradv1.RunnerStatus_RUNNER_STATUS_RUNNING:
+		return RunnerStatusRunning
+	case gradv1.RunnerStatus_RUNNER_STATUS_STOPPING:
+		return RunnerStatusStopping
+	case gradv1.RunnerStatus_RUNNER_STATUS_STOPPED:
+		return RunnerStatusStopped
+	case gradv1.RunnerStatus_RUNNER_STATUS_ERROR:
+		return RunnerStatusError
+	default:
+		return RunnerStatusUnspecified
 	}
 }

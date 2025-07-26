@@ -5,15 +5,21 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/strrl/gra/cmd/gractl/cmd"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "gractl",
-	Short: "Gractl - A CLI control tool",
-	Long:  `Gractl is a command-line control interface tool.`,
+	Short: "Gractl - A CLI control tool for grad",
+	Long:  `Gractl is a command-line control interface tool for managing grad runners and executing remote commands.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("gractl called")
+		cmd.Help()
 	},
+}
+
+func init() {
+	// Register subcommands
+	rootCmd.AddCommand(cmd.RunnersCmd)
 }
 
 func Execute() {

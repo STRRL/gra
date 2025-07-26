@@ -166,19 +166,6 @@ skaffold dev -p development
 skaffold dev --port-forward=true
 ```
 
-### 3. File Sync Configuration
-
-```yaml
-build:
-  artifacts:
-    - image: grad
-      sync:
-        manual:
-          - src: "**/*.go"
-            dest: /app
-            strip: ""
-```
-
 ### 4. Extended Development (with gractl)
 
 ```yaml

@@ -1,15 +1,17 @@
 package service
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"os/exec"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // Well-known constants
@@ -18,6 +20,18 @@ const (
 	// In dev mode, skaffold uses dynamic tags (e.g., :v1.17.1-38-g1c6517887)
 	// Use RUNNER_IMAGE environment variable to override with actual dynamic tag
 	DefaultRunnerImage = "ghcr.io/strrl/grad-runner:latest"
+
+	// Kubernetes annotations and labels for runner management
+	RunnerAnnotationPrefix = "grad.io/"
+	RunnerLabelSelector    = "app.kubernetes.io/managed-by=grad"
+	RunnerComponentLabel   = "app.kubernetes.io/component=runner"
+	RunnerFinalizer        = "grad.io/runner-finalizer"
+
+	// Runner-specific annotations
+	RunnerIDAnnotation      = RunnerAnnotationPrefix + "runner-id"
+	RunnerNameAnnotation    = RunnerAnnotationPrefix + "runner-name"
+	RunnerStatusAnnotation  = RunnerAnnotationPrefix + "status"
+	RunnerCreatedAnnotation = RunnerAnnotationPrefix + "created-at"
 )
 
 // RunnerSpec holds resource specifications for a runner preset
@@ -113,10 +127,17 @@ type KubernetesClient struct {
 
 // NewKubernetesClient creates a new Kubernetes client for runner management
 func NewKubernetesClient(config *KubernetesConfig) (*KubernetesClient, error) {
-	// Use in-cluster configuration when running in a pod
-	kubeConfig, err := rest.InClusterConfig()
+	var kubeConfig *rest.Config
+	var err error
+
+	// Try in-cluster configuration first (when running in a pod)
+	kubeConfig, err = rest.InClusterConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get in-cluster config: %w", err)
+		// Fall back to local kubeconfig for development
+		kubeConfig, err = clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get kubernetes config (tried in-cluster and local kubeconfig): %w", err)
+		}
 	}
 
 	clientset, err := kubernetes.NewForConfig(kubeConfig)
@@ -159,7 +180,7 @@ func (k *KubernetesClient) DeleteRunnerPod(ctx context.Context, runnerID string)
 	return nil
 }
 
-// GetRunnerPod retrieves a runner pod by ID
+// GetRunnerPod gets a specific runner pod by ID
 func (k *KubernetesClient) GetRunnerPod(ctx context.Context, runnerID string) (*corev1.Pod, error) {
 	podName := k.getPodName(runnerID)
 
@@ -171,16 +192,15 @@ func (k *KubernetesClient) GetRunnerPod(ctx context.Context, runnerID string) (*
 	return pod, nil
 }
 
-// ListRunnerPods lists all runner pods
+// ListRunnerPods lists all runner pods using label selectors with optional status filtering
 func (k *KubernetesClient) ListRunnerPods(ctx context.Context) (*corev1.PodList, error) {
-	labelSelector := labels.Set{
-		"app":  "grad-runner",
-		"type": "runner",
-	}.AsSelector()
+	labelSelector := RunnerLabelSelector + "," + RunnerComponentLabel
 
-	pods, err := k.clientset.CoreV1().Pods(k.config.Namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: labelSelector.String(),
-	})
+	listOptions := metav1.ListOptions{
+		LabelSelector: labelSelector,
+	}
+
+	pods, err := k.clientset.CoreV1().Pods(k.config.Namespace).List(ctx, listOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list runner pods: %w", err)
 	}
@@ -198,21 +218,186 @@ func (k *KubernetesClient) getPodName(runnerID string) string {
 	return fmt.Sprintf("grad-runner-%s", runnerID)
 }
 
-// ExecuteCommand executes a command in a runner pod
-func (k *KubernetesClient) ExecuteCommand(ctx context.Context, runnerID, command string) (*ExecuteCommandResult, error) {
-	// For now, we'll return a simulated result
-	// In a real implementation, this would use kubectl exec or SSH
-	startTime := time.Now()
+// ExecuteCommandStream executes a command in a runner pod with streaming output
+func (k *KubernetesClient) ExecuteCommandStream(ctx context.Context, runnerID, command string, stdoutCh, stderrCh chan<- []byte) (int32, error) {
+	// For this demo, we'll execute the command locally since we don't have real K8s runners yet
+	// In production, this would use kubectl exec with streaming to the actual pod
 
-	// Simulate execution time
-	time.Sleep(100 * time.Millisecond)
+	cmd := exec.CommandContext(ctx, "bash", "-c", command)
 
-	executionTime := time.Since(startTime)
+	// Create pipes for stdout and stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return 1, fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
 
-	return &ExecuteCommandResult{
-		Output:     fmt.Sprintf("Executed command in runner %s: %s", runnerID, command),
-		Error:      "",
-		ExitCode:   0,
-		DurationMS: executionTime.Nanoseconds() / 1000000,
-	}, nil
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return 1, fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return 1, fmt.Errorf("failed to start command: %w", err)
+	}
+
+	// Stream stdout in a goroutine
+	go func() {
+		defer close(stdoutCh)
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := scanner.Bytes()
+			if len(line) > 0 {
+				// Copy the line since scanner reuses the buffer
+				lineCopy := make([]byte, len(line)+1)
+				copy(lineCopy, line)
+				lineCopy[len(line)] = '\n'
+
+				select {
+				case <-ctx.Done():
+					return
+				case stdoutCh <- lineCopy:
+				}
+			}
+		}
+	}()
+
+	// Stream stderr in a goroutine
+	go func() {
+		defer close(stderrCh)
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			line := scanner.Bytes()
+			if len(line) > 0 {
+				// Copy the line since scanner reuses the buffer
+				lineCopy := make([]byte, len(line)+1)
+				copy(lineCopy, line)
+				lineCopy[len(line)] = '\n'
+
+				select {
+				case <-ctx.Done():
+					return
+				case stderrCh <- lineCopy:
+				}
+			}
+		}
+	}()
+
+	// Wait for command to complete
+	err = cmd.Wait()
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			return int32(exitError.ExitCode()), nil
+		}
+		return 1, err
+	}
+
+	return 0, nil
+}
+
+// PodToRunner converts a Kubernetes pod to a domain Runner object
+func PodToRunner(pod *corev1.Pod) *Runner {
+	runner := &Runner{
+		ID:   pod.Annotations[RunnerIDAnnotation],
+		Name: pod.Annotations[RunnerNameAnnotation],
+	}
+
+	// Always derive status from actual pod state (pod phase and conditions)
+	// This ensures we get the real-time status rather than stale annotations
+	runner.Status = MapPodStatusToRunnerStatus(pod)
+
+	// Parse timestamps
+	if createdStr, ok := pod.Annotations[RunnerCreatedAnnotation]; ok {
+		if createdAt, err := time.Parse(time.RFC3339, createdStr); err == nil {
+			runner.CreatedAt = createdAt.Unix()
+		}
+	} else {
+		runner.CreatedAt = pod.CreationTimestamp.Unix()
+	}
+
+	runner.UpdatedAt = runner.CreatedAt
+	if pod.Status.StartTime != nil {
+		runner.UpdatedAt = pod.Status.StartTime.Unix()
+	}
+
+	// Get IP address
+	runner.IPAddress = pod.Status.PodIP
+
+	// Extract resource requirements
+	if len(pod.Spec.Containers) > 0 {
+		container := pod.Spec.Containers[0]
+		if requests := container.Resources.Requests; requests != nil {
+			runner.Resources = &ResourceRequirements{}
+
+			if cpu := requests.Cpu(); cpu != nil {
+				runner.Resources.CPUMillicores = int32(cpu.MilliValue())
+			}
+			if memory := requests.Memory(); memory != nil {
+				runner.Resources.MemoryMB = int32(memory.Value() / (1024 * 1024))
+			}
+			if storage := requests.StorageEphemeral(); storage != nil {
+				runner.Resources.StorageGB = int32(storage.Value() / (1024 * 1024 * 1024))
+			}
+		}
+	}
+
+	// Extract environment variables
+	runner.Env = make(map[string]string)
+	if len(pod.Spec.Containers) > 0 {
+		for _, envVar := range pod.Spec.Containers[0].Env {
+			runner.Env[envVar.Name] = envVar.Value
+		}
+	}
+
+	return runner
+}
+
+
+// AddRunnerFinalizer adds the runner finalizer to a pod
+func (k *KubernetesClient) AddRunnerFinalizer(ctx context.Context, podName string) error {
+	pod, err := k.clientset.CoreV1().Pods(k.config.Namespace).Get(ctx, podName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get pod for finalizer: %w", err)
+	}
+
+	// Check if finalizer already exists
+	for _, finalizer := range pod.Finalizers {
+		if finalizer == RunnerFinalizer {
+			return nil // Already has finalizer
+		}
+	}
+
+	// Add finalizer
+	pod.Finalizers = append(pod.Finalizers, RunnerFinalizer)
+
+	_, err = k.clientset.CoreV1().Pods(k.config.Namespace).Update(ctx, pod, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to add finalizer: %w", err)
+	}
+
+	return nil
+}
+
+// RemoveRunnerFinalizer removes the runner finalizer from a pod
+func (k *KubernetesClient) RemoveRunnerFinalizer(ctx context.Context, podName string) error {
+	pod, err := k.clientset.CoreV1().Pods(k.config.Namespace).Get(ctx, podName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get pod for finalizer removal: %w", err)
+	}
+
+	// Remove finalizer
+	finalizers := make([]string, 0)
+	for _, finalizer := range pod.Finalizers {
+		if finalizer != RunnerFinalizer {
+			finalizers = append(finalizers, finalizer)
+		}
+	}
+	pod.Finalizers = finalizers
+
+	_, err = k.clientset.CoreV1().Pods(k.config.Namespace).Update(ctx, pod, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to remove finalizer: %w", err)
+	}
+
+	return nil
 }
