@@ -81,6 +81,11 @@ var createCmd = &cobra.Command{
 			}
 		}
 
+		// Automatically inject SSH public key if available
+		if sshPublicKey, err := client.GetUserSSHPublicKey(); err == nil && sshPublicKey != "" {
+			envMap["PUBLIC_KEY"] = sshPublicKey
+		}
+
 		req := &gradv1.CreateRunnerRequest{
 			Name: name,
 			Env:  envMap,

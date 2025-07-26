@@ -107,11 +107,19 @@ func TestPodCreationRequestToPodSpec(t *testing.T) {
 		RunnerID:      "runner-123",
 		RunnerName:    "test-runner",
 		Image:         "ghcr.io/strrl/grad-runner:latest",
+		S3FSImage:     "ghcr.io/strrl/grad-s3fs:latest",
 		CPURequest:    "500m",
 		MemoryRequest: "1Gi",
 		SSHPort:       22,
 		Env: map[string]string{
 			"TEST": "value",
+		},
+		Workspace: &WorkspaceConfig{
+			Bucket:   "test-bucket",
+			Endpoint: "s3.amazonaws.com",
+			Prefix:   "test-prefix",
+			Region:   "us-east-1",
+			ReadOnly: false,
 		},
 	}
 
@@ -140,45 +148,100 @@ func TestPodCreationRequestToPodSpec(t *testing.T) {
 		t.Errorf("Expected annotation grad.io/runner-name='test-runner', got '%s'", pod.Annotations["grad.io/runner-name"])
 	}
 
-	// Test container spec
-	if len(pod.Spec.Containers) != 1 {
-		t.Fatalf("Expected 1 container, got %d", len(pod.Spec.Containers))
+	// Test multi-container spec - should have both S3FS sidecar and main runner
+	if len(pod.Spec.Containers) != 2 {
+		t.Fatalf("Expected 2 containers (s3fs-sidecar + runner), got %d", len(pod.Spec.Containers))
 	}
 
-	container := pod.Spec.Containers[0]
-	if container.Name != "runner" {
-		t.Errorf("Expected container name 'runner', got '%s'", container.Name)
+	// Test S3FS sidecar container (first container)
+	s3fsContainer := pod.Spec.Containers[0]
+	if s3fsContainer.Name != "s3fs-sidecar" {
+		t.Errorf("Expected first container name 's3fs-sidecar', got '%s'", s3fsContainer.Name)
 	}
 
-	if container.Image != "ghcr.io/strrl/grad-runner:latest" {
-		t.Errorf("Expected container image 'ghcr.io/strrl/grad-runner:latest', got '%s'", container.Image)
+	if s3fsContainer.Image != "ghcr.io/strrl/grad-s3fs:latest" {
+		t.Errorf("Expected s3fs container image 'ghcr.io/strrl/grad-s3fs:latest', got '%s'", s3fsContainer.Image)
 	}
 
-	// Test environment variables
-	envMap := make(map[string]string)
-	for _, env := range container.Env {
-		envMap[env.Name] = env.Value
+	// Test S3FS container environment variables
+	s3fsEnvMap := make(map[string]string)
+	for _, env := range s3fsContainer.Env {
+		s3fsEnvMap[env.Name] = env.Value
 	}
 
-	if envMap["RUNNER_ID"] != "runner-123" {
-		t.Errorf("Expected env RUNNER_ID='runner-123', got '%s'", envMap["RUNNER_ID"])
+	if s3fsEnvMap["RUNNER_ID"] != "runner-123" {
+		t.Errorf("Expected s3fs env RUNNER_ID='runner-123', got '%s'", s3fsEnvMap["RUNNER_ID"])
 	}
 
-	if envMap["RUNNER_NAME"] != "test-runner" {
-		t.Errorf("Expected env RUNNER_NAME='test-runner', got '%s'", envMap["RUNNER_NAME"])
+	if s3fsEnvMap["S3_BUCKET"] != "test-bucket" {
+		t.Errorf("Expected s3fs env S3_BUCKET='test-bucket', got '%s'", s3fsEnvMap["S3_BUCKET"])
 	}
 
-	if envMap["TEST"] != "value" {
-		t.Errorf("Expected env TEST='value', got '%s'", envMap["TEST"])
+	if s3fsEnvMap["MOUNT_PATH"] != "/workspace/dataset" {
+		t.Errorf("Expected s3fs env MOUNT_PATH='/workspace/dataset', got '%s'", s3fsEnvMap["MOUNT_PATH"])
 	}
 
-	// Test resource requirements (basic check)
-	if container.Resources.Requests == nil {
-		t.Error("Expected resource requests to be set")
+	// Test main runner container (second container)
+	runnerContainer := pod.Spec.Containers[1]
+	if runnerContainer.Name != "runner" {
+		t.Errorf("Expected second container name 'runner', got '%s'", runnerContainer.Name)
 	}
 
-	if container.Resources.Limits == nil {
-		t.Error("Expected resource limits to be set")
+	if runnerContainer.Image != "ghcr.io/strrl/grad-runner:latest" {
+		t.Errorf("Expected runner container image 'ghcr.io/strrl/grad-runner:latest', got '%s'", runnerContainer.Image)
+	}
+
+	// Test runner container environment variables
+	runnerEnvMap := make(map[string]string)
+	for _, env := range runnerContainer.Env {
+		runnerEnvMap[env.Name] = env.Value
+	}
+
+	if runnerEnvMap["RUNNER_ID"] != "runner-123" {
+		t.Errorf("Expected runner env RUNNER_ID='runner-123', got '%s'", runnerEnvMap["RUNNER_ID"])
+	}
+
+	if runnerEnvMap["RUNNER_NAME"] != "test-runner" {
+		t.Errorf("Expected runner env RUNNER_NAME='test-runner', got '%s'", runnerEnvMap["RUNNER_NAME"])
+	}
+
+	if runnerEnvMap["TEST"] != "value" {
+		t.Errorf("Expected runner env TEST='value', got '%s'", runnerEnvMap["TEST"])
+	}
+
+	// Test resource requirements for runner container
+	if runnerContainer.Resources.Requests == nil {
+		t.Error("Expected runner container resource requests to be set")
+	}
+
+	if runnerContainer.Resources.Limits == nil {
+		t.Error("Expected runner container resource limits to be set")
+	}
+
+	// Test shared workspace volume
+	if len(pod.Spec.Volumes) != 1 {
+		t.Fatalf("Expected 1 volume (workspace), got %d", len(pod.Spec.Volumes))
+	}
+
+	workspaceVolume := pod.Spec.Volumes[0]
+	if workspaceVolume.Name != "workspace" {
+		t.Errorf("Expected volume name 'workspace', got '%s'", workspaceVolume.Name)
+	}
+
+	// Test volume mounts for both containers
+	for i, container := range pod.Spec.Containers {
+		if len(container.VolumeMounts) != 1 {
+			t.Errorf("Expected 1 volume mount for container %d, got %d", i, len(container.VolumeMounts))
+		}
+
+		volumeMount := container.VolumeMounts[0]
+		if volumeMount.Name != "workspace" {
+			t.Errorf("Expected volume mount name 'workspace' for container %d, got '%s'", i, volumeMount.Name)
+		}
+
+		if volumeMount.MountPath != "/workspace/dataset" {
+			t.Errorf("Expected volume mount path '/workspace/dataset' for container %d, got '%s'", i, volumeMount.MountPath)
+		}
 	}
 }
 

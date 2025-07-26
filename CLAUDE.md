@@ -150,12 +150,35 @@ buf generate        # Regenerate protobuf code after changes to .proto files
 ## Current API Structure
 
 The service exposes these gRPC methods:
-- `CreateRunner` - Create a new runner instance with S3FS mount support
+- `CreateRunner` - Create a new runner instance with S3FS mount support and SSH key injection
 - `DeleteRunner` - Remove a runner
 - `ListRunners` - List all runners with optional filtering
 - `GetRunner` - Get details of a specific runner
 - `ExecuteCommand` - Execute a command in a runner (was ExecuteCode)
 - `ExecuteCommandStream` - Execute a command with real-time stdout/stderr streaming
+
+### Workspace Sync Feature
+
+**NEW**: `gractl runners workspace-sync` command enables local file synchronization with remote runners.
+
+**SSH Key Integration**: Runner creation automatically injects user's SSH public key:
+```go
+// Auto-inject SSH key in CreateRunner (cmd/gractl/cmd/runners.go:84-87)
+if sshPublicKey, err := client.GetUserSSHPublicKey(); err == nil && sshPublicKey != "" {
+    envMap["PUBLIC_KEY"] = sshPublicKey
+}
+```
+
+**Local Workspace Mounting**: Mount remote `/workspace` to local directory:
+```bash
+# Example usage
+gractl runners workspace-sync runner-1
+
+# Creates and mounts to:
+./runners/runner-1/workspace/
+```
+
+**Architecture**: Uses `kubectl port-forward` + `sshfs` for secure file synchronization.
 
 ### S3FS Integration
 

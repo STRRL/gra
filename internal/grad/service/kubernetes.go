@@ -344,10 +344,11 @@ func PodToRunner(pod *corev1.Pod) *Runner {
 	// Get IP address
 	runner.IPAddress = pod.Status.PodIP
 
-	// Extract resource requirements
-	if len(pod.Spec.Containers) > 0 {
-		container := pod.Spec.Containers[0]
-		if requests := container.Resources.Requests; requests != nil {
+	// Extract resource requirements from the runner container (second container)
+	// The pod has two containers: [0] s3fs-sidecar, [1] runner
+	if len(pod.Spec.Containers) > 1 {
+		runnerContainer := pod.Spec.Containers[1] // Get the runner container, not the s3fs sidecar
+		if requests := runnerContainer.Resources.Requests; requests != nil {
 			runner.Resources = &ResourceRequirements{}
 
 			if cpu := requests.Cpu(); cpu != nil {
@@ -362,11 +363,14 @@ func PodToRunner(pod *corev1.Pod) *Runner {
 		}
 	}
 
-	// Extract environment variables
+	// Extract environment variables from the runner container (second container)
 	runner.Env = make(map[string]string)
-	if len(pod.Spec.Containers) > 0 {
-		for _, envVar := range pod.Spec.Containers[0].Env {
-			runner.Env[envVar.Name] = envVar.Value
+	if len(pod.Spec.Containers) > 1 {
+		for _, envVar := range pod.Spec.Containers[1].Env {
+			// Skip internal runner environment variables
+			if envVar.Name != "RUNNER_ID" && envVar.Name != "RUNNER_NAME" {
+				runner.Env[envVar.Name] = envVar.Value
+			}
 		}
 	}
 

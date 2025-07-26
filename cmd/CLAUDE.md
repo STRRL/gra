@@ -90,13 +90,16 @@ gractl
     ├── delete  
     ├── list
     ├── get
-    └── exec
+    ├── exec
+    └── workspace-sync (NEW: mount remote workspace locally)
 ```
 
 **Client Architecture**:
 
 - Client logic in `/cmd/gractl/client/client.go`
+- SSH utilities in `/cmd/gractl/client/ssh.go` (NEW: SSH key management, local directory handling)
 - Command implementations in `/cmd/gractl/cmd/`
+- Workspace sync in `/cmd/gractl/cmd/workspace_sync.go` (NEW: sshfs + kubectl port-forward)
 - Main entry point in `/cmd/gractl/main.go`
 
 ## Configuration Patterns
