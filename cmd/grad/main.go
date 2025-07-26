@@ -20,7 +20,8 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	gradv1 "github.com/strrl/gra/gen/grad/v1"
-	grpcserver "github.com/strrl/gra/internal/grpc"
+	grpcserver "github.com/strrl/gra/internal/grad/grpc"
+	"github.com/strrl/gra/internal/grad/service"
 )
 
 var (
@@ -86,8 +87,20 @@ func runServers() {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	// Create gRPC server
-	grpcSrv := grpcserver.NewServer()
+	// Load configuration
+	config := service.LoadConfig()
+
+	// Initialize Kubernetes client
+	k8sClient, err := service.NewKubernetesClient(config.Kubernetes)
+	if err != nil {
+		log.Fatalf("Failed to create Kubernetes client: %v", err)
+	}
+
+	// Initialize runner service
+	runnerService := service.NewRunnerService(k8sClient)
+
+	// Create gRPC server with service dependency
+	grpcSrv := grpcserver.NewServer(runnerService)
 
 	// Start HTTP server
 	go func() {
@@ -161,7 +174,7 @@ func runGRPCServer(srv *grpcserver.Server) {
 
 	grpcServer := grpc.NewServer()
 	gradv1.RegisterRunnerServiceServer(grpcServer, srv)
-	
+
 	// Enable reflection for grpcurl and other tools
 	reflection.Register(grpcServer)
 

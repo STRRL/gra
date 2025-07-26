@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "grad.fullname" . }}
+  labels:
+    {{- include "grad.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "grad.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "grad.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: grad
+        image: "{{ .Values.grad.image.repository }}:{{ .Values.grad.image.tag }}"
+        imagePullPolicy: {{ .Values.grad.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.grad.service.http.targetPort }}
+          name: http
+          protocol: TCP
+        - containerPort: {{ .Values.grad.service.grpc.targetPort }}
+          name: grpc
+          protocol: TCP
+        env:
+        - name: PORT
+          value: "{{ .Values.grad.env.PORT }}"
+        - name: GRPC_PORT
+          value: "{{ .Values.grad.env.GRPC_PORT }}"
+        - name: LOG_LEVEL
+          value: "{{ .Values.grad.env.LOG_LEVEL }}"
+        - name: RUNNER_IMAGE
+          value: "{{ .Values.grad.runner.image.repository }}:{{ .Values.grad.runner.image.tag }}"
+        resources:
+          {{- toYaml .Values.grad.resources | nindent 10 }}
+        livenessProbe:
+          {{- toYaml .Values.grad.probes.liveness | nindent 10 }}
+        readinessProbe:
+          {{- toYaml .Values.grad.probes.readiness | nindent 10 }}
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Values.grad.configMap.name }}
+      serviceAccountName: {{ .Values.grad.serviceAccount.name }}
+      securityContext:
+        runAsNonRoot: {{ .Values.grad.security.runAsNonRoot }}
+        runAsUser: {{ .Values.grad.security.runAsUser }}
+        fsGroup: {{ .Values.grad.security.fsGroup }}

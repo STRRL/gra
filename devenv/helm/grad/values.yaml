@@ -1,0 +1,57 @@
+grad:
+  image:
+    repository: grad
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  runner:
+    image:
+      repository: ghcr.io/strrl/grad-runner
+      tag: latest
+
+  service:
+    type: ClusterIP
+    http:
+      port: 8080
+      targetPort: 8080
+    grpc:
+      port: 9090
+      targetPort: 9090
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  env:
+    PORT: "8080"
+    GRPC_PORT: "9090"
+    LOG_LEVEL: "info"
+
+  probes:
+    liveness:
+      httpGet:
+        path: /health
+        port: 8080
+      initialDelaySeconds: 30
+      periodSeconds: 10
+    readiness:
+      httpGet:
+        path: /ready
+        port: 8080
+      initialDelaySeconds: 5
+      periodSeconds: 5
+
+  security:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 2000
+
+  serviceAccount:
+    name: grad-service-account
+
+  configMap:
+    name: grad-config

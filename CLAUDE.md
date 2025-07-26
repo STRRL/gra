@@ -156,3 +156,143 @@ You are NEVER allowed to stage and commit files automatically without explicit u
 - **TodoWrite**: Create and manage todo lists
 - **Task**: Launch specialized agents for complex tasks
 - **NotebookRead/NotebookEdit**: Work with Jupyter notebooks
+
+# Collaboration Patterns with User
+
+## Commands Claude Cannot Execute (User Must Handle)
+
+### 1. Long-Running Services/Daemons
+```bash
+# Claude cannot maintain these running services
+./out/grad &          # Background services
+skaffold dev          # Development environment services  
+docker run -d         # Daemon containers
+systemctl start       # System services
+```
+**Reason**: Claude's execution environment is ephemeral and cannot maintain persistent connections.
+
+### 2. Interactive Commands Requiring User Input
+```bash
+# Commands that need real-time user interaction
+git rebase -i         # Interactive rebase
+vim/nano              # Interactive editors
+kubectl exec -it      # Interactive container access
+```
+**Reason**: Claude cannot handle real-time user input.
+
+### 3. Network Listening Services
+```bash
+# Services that need to listen on network ports
+python -m http.server 8080
+node server.js
+nginx -g 'daemon off;'
+```
+**Reason**: Claude's network environment has limitations.
+
+### 4. Complex Development Environment Management
+```bash
+# Environment orchestration and management
+docker-compose up -d
+minikube start
+vagrant up
+skaffold dev --port-forward
+```
+**Reason**: These typically require long-term execution and resource management.
+
+## Effective Collaboration Pattern
+
+### Claude's Responsibilities:
+- ✅ Code writing and file operations
+- ✅ Short-term builds and compilation (`buf generate`, protocol buffer generation)
+- ✅ Quick testing commands (`curl`, `grpcurl`)
+- ✅ File system operations (`mkdir`, `ls`, `grep`)
+- ✅ Code generation and configuration
+- ✅ Build `gradctl` CLI tools (`go build ./cmd/gradctl`)
+
+### User's Responsibilities:
+- 🚀 Starting long-running services (`skaffold dev`, `./grad`)
+- 🚀 Building the main grad service (`go build ./cmd/grad` - handled by skaffold dev)
+- 🚀 Environment setup (`minikube start`, `docker-compose up`)
+- 🚀 Interactive operations
+- 🚀 Port forwarding and network configuration
+
+### Ideal Workflow:
+1. **Claude**: Prepares code, configuration, build scripts
+2. **User**: Starts development environment (`skaffold dev`)
+3. **Claude**: Tests API endpoints (`curl`, `grpcurl`)
+4. **Collaboration**: User provides environment feedback, Claude adjusts code
+
+This division of labor allows us to collaborate efficiently, leveraging each party's strengths!
+
+## Skaffold Dynamic Image Tags
+
+### Problem
+Skaffold in dev mode uses dynamic image tags based on git commits (e.g., `ghcr.io/strrl/grad-runner:v1.17.1-38-g1c6517887`) instead of `:latest`.
+
+### Solution
+The grad service supports the `RUNNER_IMAGE` environment variable to override the default runner image:
+
+```bash
+# Find the actual image tag used by skaffold
+minikube ssh docker images | grep grad-runner
+
+# Set the environment variable in your deployment
+export RUNNER_IMAGE="ghcr.io/strrl/grad-runner:v1.17.1-38-g1c6517887"
+```
+
+### Integration with Skaffold
+In your Kubernetes deployment manifests, you can use:
+
+```yaml
+env:
+  - name: RUNNER_IMAGE
+    value: "ghcr.io/strrl/grad-runner:v1.17.1-38-g1c6517887"
+```
+
+Or use skaffold's image substitution features to automatically inject the correct tag.
+
+# Coding Rules and Standards
+
+## Build Rules
+
+### ❌ NEVER use `go build ./cmd/grad`
+- The main grad service is built and deployed via `skaffold dev`
+- User handles this through their development environment
+- Claude should NOT attempt to build the grad service directly
+
+### ✅ Claude CAN use `go build` for:
+- CLI tools: `go build ./cmd/gradctl`
+- Other utility commands that are not the main service
+- Test builds for validation (but prefer `go test`)
+
+## Code Style Rules
+
+### ❌ NEVER use line-tail comments
+**Bad examples:**
+```go
+DefaultCPU:     "2000m",        // small preset: 2 CPU cores
+MemoryRequest: config.DefaultMemory, // small preset: 2Gi
+result := calculateValue()  // This calculates the final result
+```
+
+**Good examples:**
+```go
+// Small preset: 2 CPU cores
+DefaultCPU: "2000m",
+
+// Small preset: 2GB memory  
+MemoryRequest: config.DefaultMemory,
+
+// Calculate the final result based on input parameters
+result := calculateValue()
+```
+
+### ✅ Use block comments above the code
+- Place explanatory comments on their own lines above the code
+- Use clear, descriptive language
+- Explain the "why" not just the "what"
+
+## Verification Commands
+
+### Skaffold Configuration
+Use `skaffold diagnose` to verify skaffold configuration and check for issues.

@@ -27,11 +27,8 @@ message CreateRunnerRequest {
   // Name of the runner (optional, will be auto-generated if not provided)
   string name = 1;
   
-  // Resource requirements for the runner
-  ResourceRequirements resources = 2;
-  
   // Environment variables to set in the runner
-  map<string, string> env = 3;
+  map<string, string> env = 2;
 }
 
 // CreateRunnerResponse defines the response after creating a runner

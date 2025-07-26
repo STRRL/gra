@@ -133,10 +133,10 @@ test:
 
 # Deploy configuration
 deploy:
-  kubectl:
-    manifests:
-      - k8s/grad-deployment.yaml
-      - k8s/grad-service.yaml
+  helm:
+    releases:
+      - name: grad
+        chartPath: devenv/helm/grad
 
 # Development profiles
 profiles:

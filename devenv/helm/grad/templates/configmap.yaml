@@ -1,20 +1,19 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grad-config
+  name: {{ .Values.grad.configMap.name }}
   labels:
-    app: grad
-    component: grad-service
+    {{- include "grad.labels" . | nindent 4 }}
 data:
   config.yaml: |
     server:
-      http_port: 8080
-      grpc_port: 9090
-      log_level: info
+      http_port: {{ .Values.grad.service.http.port }}
+      grpc_port: {{ .Values.grad.service.grpc.port }}
+      log_level: {{ .Values.grad.env.LOG_LEVEL }}
     
     runners:
       # Runner container image configuration
-      image: "runner:latest"
+      image: "{{ .Values.grad.runner.image.repository }}:{{ .Values.grad.runner.image.tag }}"
       
       # Default runner resources
       resources:
@@ -44,7 +43,7 @@ data:
         options: "allow_other,use_cache=/tmp/s3fs-cache"
     
     kubernetes:
-      namespace: "default"
+      namespace: {{ .Release.Namespace | quote }}
       runner_name_prefix: "runner-"
       cleanup_timeout: "300s"
       

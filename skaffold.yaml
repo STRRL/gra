@@ -5,6 +5,8 @@ metadata:
 
 # Build configuration
 build:
+  tagPolicy:
+    gitCommit: {}
   artifacts:
     # Grad service container
     - image: grad
@@ -16,28 +18,24 @@ build:
           GOOS: "linux"
           GOARCH: "amd64"
       sync:
-        manual:
-          # Sync Go source files for faster development
-          - src: "**/*.go"
-            dest: /app/src
-            strip: ""
-          - src: "go.mod"
-            dest: /app/go.mod
-          - src: "go.sum"
-            dest: /app/go.sum
+        auto: true
     
     # Runner container (pre-built for dynamic creation by grad)
-    - image: runner
+    - image: grad-runner
       context: .
       docker:
         dockerfile: devenv/runner/Dockerfile
 
+
 # Manifest configuration
 manifests:
-  rawYaml:
-    - devenv/k8s/grad-deployment.yaml
-    - devenv/k8s/grad-service.yaml
-    - devenv/k8s/grad-configmap.yaml
+  helm:
+    releases:
+      - name: grad
+        chartPath: devenv/helm/grad
+        setValueTemplates:
+          grad.image.tag: "{{.IMAGE_TAG_grad}}"
+          grad.runner.image.tag: "{{.IMAGE_TAG_grad_runner}}"
 
 # Deploy configuration using kubectl
 deploy:
@@ -93,7 +91,10 @@ profiles:
           docker:
             dockerfile: cmd/gractl/Dockerfile
     manifests:
-      rawYaml:
-        - devenv/k8s/grad-deployment.yaml
-        - devenv/k8s/grad-service.yaml
-        - devenv/k8s/gractl-configmap.yaml
+      helm:
+        releases:
+          - name: grad
+            chartPath: devenv/helm/grad
+            setValueTemplates:
+              grad.image.tag: "{{.IMAGE_TAG_grad}}"
+              grad.runner.image.tag: "{{.IMAGE_TAG_grad_runner}}"

@@ -21,7 +21,14 @@
       "Bash(go build:*)",
       "WebFetch(domain:buf.build)",
       "Bash(curl:*)",
-      "Bash(grpcurl:*)"
+      "Bash(grpcurl:*)",
+      "WebFetch(domain:pkg.go.dev)",
+      "WebFetch(domain:github.com)",
+      "Bash(go test:*)",
+      "Bash(buf generate:*)",
+      "WebFetch(domain:codelabs.developers.google.com)",
+      "WebFetch(domain:cloud.google.com)",
+      "Bash(skaffold diagnose:*)"
     ],
     "deny": []
   }

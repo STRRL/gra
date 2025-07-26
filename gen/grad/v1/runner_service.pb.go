@@ -85,10 +85,8 @@ type CreateRunnerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Name of the runner (optional, will be auto-generated if not provided)
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Resource requirements for the runner
-	Resources *ResourceRequirements `protobuf:"bytes,2,opt,name=resources,proto3" json:"resources,omitempty"`
 	// Environment variables to set in the runner
-	Env           map[string]string `protobuf:"bytes,3,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Env           map[string]string `protobuf:"bytes,2,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -128,13 +126,6 @@ func (x *CreateRunnerRequest) GetName() string {
 		return x.Name
 	}
 	return ""
-}
-
-func (x *CreateRunnerRequest) GetResources() *ResourceRequirements {
-	if x != nil {
-		return x.Resources
-	}
-	return nil
 }
 
 func (x *CreateRunnerRequest) GetEnv() map[string]string {
@@ -907,11 +898,10 @@ var File_grad_v1_runner_service_proto protoreflect.FileDescriptor
 
 const file_grad_v1_runner_service_proto_rawDesc = "" +
 	"\n" +
-	"\x1cgrad/v1/runner_service.proto\x12\agrad.v1\"\xd7\x01\n" +
+	"\x1cgrad/v1/runner_service.proto\x12\agrad.v1\"\x9a\x01\n" +
 	"\x13CreateRunnerRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12;\n" +
-	"\tresources\x18\x02 \x01(\v2\x1d.grad.v1.ResourceRequirementsR\tresources\x127\n" +
-	"\x03env\x18\x03 \x03(\v2%.grad.v1.CreateRunnerRequest.EnvEntryR\x03env\x1a6\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x127\n" +
+	"\x03env\x18\x02 \x03(\v2%.grad.v1.CreateRunnerRequest.EnvEntryR\x03env\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"?\n" +
@@ -1021,31 +1011,30 @@ var file_grad_v1_runner_service_proto_goTypes = []any{
 	nil,                          // 15: grad.v1.Runner.EnvEntry
 }
 var file_grad_v1_runner_service_proto_depIdxs = []int32{
-	12, // 0: grad.v1.CreateRunnerRequest.resources:type_name -> grad.v1.ResourceRequirements
-	14, // 1: grad.v1.CreateRunnerRequest.env:type_name -> grad.v1.CreateRunnerRequest.EnvEntry
-	11, // 2: grad.v1.CreateRunnerResponse.runner:type_name -> grad.v1.Runner
-	0,  // 3: grad.v1.ListRunnersRequest.status:type_name -> grad.v1.RunnerStatus
-	11, // 4: grad.v1.ListRunnersResponse.runners:type_name -> grad.v1.Runner
-	11, // 5: grad.v1.GetRunnerResponse.runner:type_name -> grad.v1.Runner
-	0,  // 6: grad.v1.Runner.status:type_name -> grad.v1.RunnerStatus
-	12, // 7: grad.v1.Runner.resources:type_name -> grad.v1.ResourceRequirements
-	13, // 8: grad.v1.Runner.ssh:type_name -> grad.v1.SSHDetails
-	15, // 9: grad.v1.Runner.env:type_name -> grad.v1.Runner.EnvEntry
-	1,  // 10: grad.v1.RunnerService.CreateRunner:input_type -> grad.v1.CreateRunnerRequest
-	3,  // 11: grad.v1.RunnerService.DeleteRunner:input_type -> grad.v1.DeleteRunnerRequest
-	5,  // 12: grad.v1.RunnerService.ListRunners:input_type -> grad.v1.ListRunnersRequest
-	7,  // 13: grad.v1.RunnerService.ExecuteCode:input_type -> grad.v1.ExecuteCodeRequest
-	9,  // 14: grad.v1.RunnerService.GetRunner:input_type -> grad.v1.GetRunnerRequest
-	2,  // 15: grad.v1.RunnerService.CreateRunner:output_type -> grad.v1.CreateRunnerResponse
-	4,  // 16: grad.v1.RunnerService.DeleteRunner:output_type -> grad.v1.DeleteRunnerResponse
-	6,  // 17: grad.v1.RunnerService.ListRunners:output_type -> grad.v1.ListRunnersResponse
-	8,  // 18: grad.v1.RunnerService.ExecuteCode:output_type -> grad.v1.ExecuteCodeResponse
-	10, // 19: grad.v1.RunnerService.GetRunner:output_type -> grad.v1.GetRunnerResponse
-	15, // [15:20] is the sub-list for method output_type
-	10, // [10:15] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	14, // 0: grad.v1.CreateRunnerRequest.env:type_name -> grad.v1.CreateRunnerRequest.EnvEntry
+	11, // 1: grad.v1.CreateRunnerResponse.runner:type_name -> grad.v1.Runner
+	0,  // 2: grad.v1.ListRunnersRequest.status:type_name -> grad.v1.RunnerStatus
+	11, // 3: grad.v1.ListRunnersResponse.runners:type_name -> grad.v1.Runner
+	11, // 4: grad.v1.GetRunnerResponse.runner:type_name -> grad.v1.Runner
+	0,  // 5: grad.v1.Runner.status:type_name -> grad.v1.RunnerStatus
+	12, // 6: grad.v1.Runner.resources:type_name -> grad.v1.ResourceRequirements
+	13, // 7: grad.v1.Runner.ssh:type_name -> grad.v1.SSHDetails
+	15, // 8: grad.v1.Runner.env:type_name -> grad.v1.Runner.EnvEntry
+	1,  // 9: grad.v1.RunnerService.CreateRunner:input_type -> grad.v1.CreateRunnerRequest
+	3,  // 10: grad.v1.RunnerService.DeleteRunner:input_type -> grad.v1.DeleteRunnerRequest
+	5,  // 11: grad.v1.RunnerService.ListRunners:input_type -> grad.v1.ListRunnersRequest
+	7,  // 12: grad.v1.RunnerService.ExecuteCode:input_type -> grad.v1.ExecuteCodeRequest
+	9,  // 13: grad.v1.RunnerService.GetRunner:input_type -> grad.v1.GetRunnerRequest
+	2,  // 14: grad.v1.RunnerService.CreateRunner:output_type -> grad.v1.CreateRunnerResponse
+	4,  // 15: grad.v1.RunnerService.DeleteRunner:output_type -> grad.v1.DeleteRunnerResponse
+	6,  // 16: grad.v1.RunnerService.ListRunners:output_type -> grad.v1.ListRunnersResponse
+	8,  // 17: grad.v1.RunnerService.ExecuteCode:output_type -> grad.v1.ExecuteCodeResponse
+	10, // 18: grad.v1.RunnerService.GetRunner:output_type -> grad.v1.GetRunnerResponse
+	14, // [14:19] is the sub-list for method output_type
+	9,  // [9:14] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_grad_v1_runner_service_proto_init() }
