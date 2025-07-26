@@ -36,7 +36,8 @@ devenv/
 - **Python Packages**: pandas, numpy, duckdb, pyarrow, jupyter, matplotlib, seaborn, scipy, scikit-learn
 - **User Setup**: Non-root `runner` user with workspace at `/workspace/`
 - **SSH**: Enabled on port 22 for future file synchronization features
-- **S3FS**: Pre-installed for future S3 data mounting
+- **S3FS**: Pre-installed for S3 data mounting at hardcoded `/workspace/dataset` path
+- **DuckDB CLI**: Multi-architecture support with correct ARM64 binary naming
 
 ### Skaffold Profiles
 
@@ -81,6 +82,24 @@ probes:
 - **s3fs sidecar**: Built from `devenv/runner/s3fs/Dockerfile`
 - **Tags**: Automatically generated from git commit hash via Skaffold
 - **Architecture**: Multi-arch support (ARM64/AMD64) via Docker buildkit TARGETARCH
+
+### Recent Architecture Fixes
+
+**Multi-Architecture Support**: All Dockerfiles now use `ARG TARGETARCH` for automatic architecture detection:
+
+```dockerfile
+# Example from cmd/grad/Dockerfile:13-15
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} go build -o grad ./cmd/grad
+```
+
+**DuckDB ARM64 Fix**: Corrected binary naming for ARM64 systems:
+```dockerfile 
+# devenv/runner/main/Dockerfile:16-22 (uses "arm64" not "aarch64")
+ARG TARGETARCH
+RUN ARCH=${TARGETARCH:-amd64} && \
+    curl -L https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-linux-${ARCH}.zip
+```
 
 ## Development Workflow Commands
 

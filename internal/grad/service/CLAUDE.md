@@ -19,7 +19,7 @@ The `internal/grad/service` package contains the core business logic for the gra
 ### Kubernetes Integration
 
 - **kubernetes.go**: Kubernetes client wrapper and resource management
-- **pod_spec.go**: Pod specification generation and configuration
+- **pod_spec.go**: Pod specification generation and configuration with S3FS sidecar support
 
 ### Testing
 
@@ -49,6 +49,7 @@ The `internal/grad/service` package contains the core business logic for the gra
 - Runner IDs are simple incrementing integers (runner-1, runner-2, etc.)
 - Hardcoded "small" preset (2c2g40g) for all runners
 - Activity tracking maintained in memory for cleanup purposes
+- S3FS mount path hardcoded to `/workspace/dataset` (not configurable)
 
 ### Activity Tracking and Cleanup
 
@@ -204,6 +205,61 @@ cleanupService.Stop()
 - **CleanupService** requires: RunnerService, ActivityTracker  
 - **ActivityTracker** has no dependencies (standalone)
 - **KubernetesClient** requires: KubernetesConfig
+
+## Recent Implementation Changes
+
+### S3FS Mount Path Hardcoding (pod_spec.go)
+
+**Removed configurable mount paths in favor of hardcoded `/workspace/dataset`**:
+
+```go
+// Always use hardcoded mount path (pod_spec.go:244)
+mountPath := "/workspace/dataset"
+
+// S3FS environment variables with hardcoded path (pod_spec.go:256-259)
+s3fsEnv = append(s3fsEnv, corev1.EnvVar{
+    Name:  "MOUNT_PATH",
+    Value: "/workspace/dataset",
+})
+```
+
+**Protobuf changes**: Removed `mount_path` field from WorkspaceConfig message.
+
+### gRPC Streaming EOF Fixes
+
+**Server-side channel closure handling** (internal/grad/grpc/server.go):
+```go
+case err, ok := <-errCh:
+    if !ok {
+        // errCh was closed, no error to handle  
+        continue
+    }
+    return s.mapServiceError(err)
+```
+
+**Client-side EOF detection** (cmd/gractl/cmd/runners.go):
+```go
+for {
+    resp, err := stream.Recv()
+    if err != nil {
+        if err == io.EOF {
+            break  // Normal stream termination
+        }
+        fmt.Fprintf(os.Stderr, "Stream error: %v\n", err)
+        os.Exit(1)
+    }
+    // Process response...
+}
+```
+
+### Multi-Architecture Support
+
+**Docker buildkit TARGETARCH support** for ARM64/AMD64:
+- cmd/grad/Dockerfile: Added TARGETARCH ARG for Go builds
+- devenv/runner/main/Dockerfile: Fixed DuckDB download for ARM64 
+- skaffold.yaml: Removed hardcoded GOARCH to use buildkit detection
+
+**DuckDB Architecture Fix**: Uses "arm64" naming (not "aarch64") for ARM64 Linux binaries.
 
 ## Security Considerations
 

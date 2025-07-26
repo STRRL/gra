@@ -34,6 +34,27 @@ make clean          # Clean build artifacts
 # - amd64 → downloads amd64 binary
 ```
 
+**Multi-Architecture Implementation**:
+
+```dockerfile
+# Docker multi-arch support (cmd/grad/Dockerfile:13-15)
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} go build -o grad ./cmd/grad
+```
+
+```dockerfile
+# DuckDB CLI with correct ARM64 naming (devenv/runner/main/Dockerfile:16-22)
+ARG TARGETARCH
+RUN ARCH=${TARGETARCH:-amd64} && \
+    curl -L https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-linux-${ARCH}.zip -o /tmp/duckdb.zip && \
+    unzip /tmp/duckdb.zip -d /tmp && \
+    mv /tmp/duckdb /usr/local/bin/duckdb && \
+    chmod +x /usr/local/bin/duckdb && \
+    rm -f /tmp/duckdb.zip
+```
+
+**Note**: DuckDB uses "arm64" naming (not "aarch64") for ARM64 Linux binaries.
+
 ### Development Workflow
 ```bash
 # Start development environment (includes minikube start)
@@ -129,12 +150,64 @@ buf generate        # Regenerate protobuf code after changes to .proto files
 ## Current API Structure
 
 The service exposes these gRPC methods:
-- `CreateRunner` - Create a new runner instance
+- `CreateRunner` - Create a new runner instance with S3FS mount support
 - `DeleteRunner` - Remove a runner
 - `ListRunners` - List all runners with optional filtering
 - `GetRunner` - Get details of a specific runner
 - `ExecuteCommand` - Execute a command in a runner (was ExecuteCode)
 - `ExecuteCommandStream` - Execute a command with real-time stdout/stderr streaming
+
+### S3FS Integration
+
+**Hardcoded Mount Path**: All S3 datasets are mounted at `/workspace/dataset` (not configurable)
+
+```go
+// S3FS sidecar configuration (pod_spec.go:243-249)
+s3fsEnv = append(s3fsEnv, corev1.EnvVar{
+    Name:  "MOUNT_PATH", 
+    Value: "/workspace/dataset",  // Always hardcoded
+})
+```
+
+**WorkspaceConfig Changes**: Removed mount_path field from protobuf definition:
+```proto
+message WorkspaceConfig {
+    string bucket = 1;
+    string endpoint = 2; 
+    string prefix = 3;
+    string region = 4;
+    bool read_only = 5;  // mount_path removed in favor of hardcoded path
+}
+```
+
+### gRPC Streaming Error Handling
+
+**EOF Handling**: Fixed proper EOF detection in both client and server:
+
+```go
+// Client-side EOF handling (cmd/gractl/cmd/runners.go:89-95)
+for {
+    resp, err := stream.Recv()
+    if err != nil {
+        if err == io.EOF {
+            break  // Normal stream termination
+        }
+        fmt.Fprintf(os.Stderr, "Stream error: %v\n", err)
+        os.Exit(1)
+    }
+    // Process response...
+}
+```
+
+```go
+// Server-side channel closure handling (internal/grad/grpc/server.go:191-196)
+case err, ok := <-errCh:
+    if !ok {
+        // errCh was closed, no error to handle
+        continue
+    }
+    return s.mapServiceError(err)
+```
 
 ## Testing
 

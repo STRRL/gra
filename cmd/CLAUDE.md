@@ -113,6 +113,7 @@ gractl
 - Connection to grad service (typically localhost:9090 in dev)
 - Output formatting options for human vs programmatic use
 - Streaming vs batch execution modes
+- Proper EOF handling for gRPC streaming (fixed spurious "Stream error" messages)
 
 ## Testing Patterns
 
@@ -150,6 +151,7 @@ grpcurl -plaintext localhost:9090 list
 - Cobra command error handling with os.Exit(1)
 - gRPC client error handling and user-friendly error messages
 - Streaming error handling for real-time command execution
+- Fixed EOF detection: `err == io.EOF` (not string comparison) for proper stream termination
 
 ## Dependencies and Imports
 
