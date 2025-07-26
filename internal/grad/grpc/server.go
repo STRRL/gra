@@ -16,7 +16,7 @@ import (
 type Server struct {
 	gradv1.UnimplementedRunnerServiceServer
 	gradv1.UnimplementedExecuteServiceServer
-	runnerService service.RunnerService
+	runnerService  service.RunnerService
 	executeService service.ExecuteService
 }
 
@@ -110,7 +110,7 @@ func (s *Server) ExecuteCommandStream(req *gradv1.ExecuteCommandRequest, stream 
 	// Note: stdoutCh and stderrCh will be closed by the sender (Kubernetes layer)
 	stdoutCh := make(chan []byte, 100)
 	stderrCh := make(chan []byte, 100)
-	
+
 	// exitCh and errCh are owned by this gRPC layer
 	exitCh := make(chan int32, 1)
 	errCh := make(chan error, 1)
@@ -167,7 +167,11 @@ func (s *Server) ExecuteCommandStream(req *gradv1.ExecuteCommandRequest, stream 
 				ExitCode: exitCode,
 			})
 
-		case err := <-errCh:
+		case err, ok := <-errCh:
+			if !ok {
+				// errCh was closed, no error to handle
+				continue
+			}
 			return s.mapServiceError(err)
 
 		case <-stream.Context().Done():
@@ -276,7 +280,7 @@ func (s *Server) ExecuteCommand(req *gradv1.ExecuteCommandRequest, stream gradv1
 	// Note: stdoutCh and stderrCh will be closed by the sender (service layer)
 	stdoutCh := make(chan []byte, 100)
 	stderrCh := make(chan []byte, 100)
-	
+
 	// exitCh and errCh are owned by this gRPC layer
 	exitCh := make(chan int32, 1)
 	errCh := make(chan error, 1)
@@ -333,7 +337,11 @@ func (s *Server) ExecuteCommand(req *gradv1.ExecuteCommandRequest, stream gradv1
 				ExitCode: exitCode,
 			})
 
-		case err := <-errCh:
+		case err, ok := <-errCh:
+			if !ok {
+				// errCh was closed, no error to handle
+				continue
+			}
 			return s.mapServiceError(err)
 
 		case <-stream.Context().Done():
@@ -359,6 +367,9 @@ func (s *Server) ExecuteCommand(req *gradv1.ExecuteCommandRequest, stream gradv1
 
 // mapServiceError maps domain errors to gRPC status errors
 func (s *Server) mapServiceError(err error) error {
+	if err == nil {
+		return nil
+	}
 	switch {
 	case errors.Is(err, service.ErrRunnerNotFound):
 		return status.Errorf(codes.NotFound, "runner not found")

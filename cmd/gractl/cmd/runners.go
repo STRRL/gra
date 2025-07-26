@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -231,7 +232,7 @@ var execCmd = &cobra.Command{
 		for {
 			resp, err := stream.Recv()
 			if err != nil {
-				if err.Error() == "EOF" {
+				if err == io.EOF {
 					break
 				}
 				fmt.Fprintf(os.Stderr, "Stream error: %v\n", err)
