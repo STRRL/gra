@@ -20,6 +20,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	// Register subcommands
 	rootCmd.AddCommand(cmd.RunnersCmd)
+	rootCmd.AddCommand(cmd.ExecuteCmd)
 }
 
 func Execute() {

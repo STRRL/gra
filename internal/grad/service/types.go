@@ -90,6 +90,11 @@ type RunnerService interface {
 	ExecuteCommandStream(ctx context.Context, req *ExecuteCommandRequest, stdoutCh, stderrCh chan<- []byte) (int32, error)
 }
 
+// ExecuteService defines the interface for command execution with automatic runner provisioning
+type ExecuteService interface {
+	ExecuteCommand(ctx context.Context, req *ExecuteCommandRequest, stdoutCh, stderrCh chan<- []byte) (int32, error)
+}
+
 // Conversion functions between domain and proto types
 
 // ToProtoRunner converts domain Runner to proto Runner

@@ -116,11 +116,14 @@ func runServers() {
 	// Initialize runner service
 	runnerService := service.NewRunnerService(k8sClient, activityTracker)
 
+	// Initialize execute service
+	executeService := service.NewExecuteService(runnerService)
+
 	// Initialize cleanup service for inactive runners
 	cleanupService := service.NewCleanupService(runnerService, activityTracker)
 
-	// Create gRPC server with service dependency
-	grpcSrv := grpcserver.NewServer(runnerService)
+	// Create gRPC server with service dependencies
+	grpcSrv := grpcserver.NewServer(runnerService, executeService)
 
 	// Start HTTP server
 	go func() {
@@ -205,6 +208,7 @@ func runGRPCServer(srv *grpcserver.Server) {
 
 	grpcServer := grpc.NewServer()
 	gradv1.RegisterRunnerServiceServer(grpcServer, srv)
+	gradv1.RegisterExecuteServiceServer(grpcServer, srv)
 
 	// Enable reflection for grpcurl and other tools
 	reflection.Register(grpcServer)

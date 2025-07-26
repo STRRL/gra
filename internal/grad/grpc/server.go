@@ -12,16 +12,19 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Server implements the gRPC RunnerService as a thin controller
+// Server implements the gRPC RunnerService and ExecuteService as a thin controller
 type Server struct {
 	gradv1.UnimplementedRunnerServiceServer
+	gradv1.UnimplementedExecuteServiceServer
 	runnerService service.RunnerService
+	executeService service.ExecuteService
 }
 
 // NewServer creates a new gRPC server instance
-func NewServer(runnerService service.RunnerService) *Server {
+func NewServer(runnerService service.RunnerService, executeService service.ExecuteService) *Server {
 	return &Server{
-		runnerService: runnerService,
+		runnerService:  runnerService,
+		executeService: executeService,
 	}
 }
 
@@ -238,6 +241,120 @@ func (s *Server) validateExecuteCommandRequest(req *gradv1.ExecuteCommandRequest
 	}
 
 	return nil
+}
+
+// validateExecuteServiceCommandRequest validates the execute command request for ExecuteService
+// This is similar to validateExecuteCommandRequest but doesn't require runner_id
+func (s *Server) validateExecuteServiceCommandRequest(req *gradv1.ExecuteCommandRequest) error {
+	if req.Command == "" {
+		return errors.New("command is required")
+	}
+
+	if req.Timeout < 0 {
+		return errors.New("timeout must be non-negative")
+	}
+
+	// Set default timeout if not provided
+	if req.Timeout == 0 {
+		req.Timeout = 30 // 30 seconds default
+	}
+
+	return nil
+}
+
+// ExecuteCommand executes a command with automatic runner provisioning
+func (s *Server) ExecuteCommand(req *gradv1.ExecuteCommandRequest, stream gradv1.ExecuteService_ExecuteCommandServer) error {
+	// Validate request (without runner_id requirement)
+	if err := s.validateExecuteServiceCommandRequest(req); err != nil {
+		return status.Errorf(codes.InvalidArgument, "invalid request: %v", err)
+	}
+
+	// Convert proto request to domain request
+	domainReq := service.FromProtoExecuteCommandRequest(req)
+
+	// Create channels for streaming
+	// Note: stdoutCh and stderrCh will be closed by the sender (service layer)
+	stdoutCh := make(chan []byte, 100)
+	stderrCh := make(chan []byte, 100)
+	
+	// exitCh and errCh are owned by this gRPC layer
+	exitCh := make(chan int32, 1)
+	errCh := make(chan error, 1)
+
+	// Start command execution in a goroutine
+	go func() {
+		// Only close channels that this goroutine owns/sends to
+		defer close(exitCh)
+		defer close(errCh)
+
+		exitCode, err := s.executeService.ExecuteCommand(stream.Context(), domainReq, stdoutCh, stderrCh)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		exitCh <- exitCode
+	}()
+
+	// Stream the output (same logic as ExecuteCommandStream)
+	for {
+		select {
+		case data, ok := <-stdoutCh:
+			if !ok {
+				stdoutCh = nil
+				continue
+			}
+			if len(data) > 0 {
+				if err := stream.Send(&gradv1.ExecuteCommandStreamResponse{
+					Type: gradv1.StreamType_STREAM_TYPE_STDOUT,
+					Data: data,
+				}); err != nil {
+					return err
+				}
+			}
+
+		case data, ok := <-stderrCh:
+			if !ok {
+				stderrCh = nil
+				continue
+			}
+			if len(data) > 0 {
+				if err := stream.Send(&gradv1.ExecuteCommandStreamResponse{
+					Type: gradv1.StreamType_STREAM_TYPE_STDERR,
+					Data: data,
+				}); err != nil {
+					return err
+				}
+			}
+
+		case exitCode := <-exitCh:
+			// Send final exit message
+			return stream.Send(&gradv1.ExecuteCommandStreamResponse{
+				Type:     gradv1.StreamType_STREAM_TYPE_EXIT,
+				ExitCode: exitCode,
+			})
+
+		case err := <-errCh:
+			return s.mapServiceError(err)
+
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		}
+
+		// If both stdout and stderr channels are closed, wait for exit
+		if stdoutCh == nil && stderrCh == nil {
+			select {
+			case exitCode := <-exitCh:
+				return stream.Send(&gradv1.ExecuteCommandStreamResponse{
+					Type:     gradv1.StreamType_STREAM_TYPE_EXIT,
+					ExitCode: exitCode,
+				})
+			case err := <-errCh:
+				return s.mapServiceError(err)
+			case <-stream.Context().Done():
+				return stream.Context().Err()
+			}
+		}
+	}
 }
 
 // mapServiceError maps domain errors to gRPC status errors

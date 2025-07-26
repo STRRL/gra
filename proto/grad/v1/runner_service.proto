@@ -186,3 +186,9 @@ message SSHDetails {
   // SSH public key (for connection)
   string public_key = 4;
 }
+
+// ExecuteService manages command execution with automatic runner provisioning
+service ExecuteService {
+  // ExecuteCommand executes a command, creating a runner if needed
+  rpc ExecuteCommand(ExecuteCommandRequest) returns (stream ExecuteCommandStreamResponse);
+}

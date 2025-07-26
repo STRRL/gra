@@ -13,8 +13,9 @@ import (
 
 // Client wraps the gRPC client connection
 type Client struct {
-	conn          *grpc.ClientConn
-	runnerService gradv1.RunnerServiceClient
+	conn           *grpc.ClientConn
+	runnerService  gradv1.RunnerServiceClient
+	executeService gradv1.ExecuteServiceClient
 }
 
 // Config holds client configuration
@@ -50,8 +51,9 @@ func NewClient(cfg *Config) (*Client, error) {
 	}
 
 	return &Client{
-		conn:          conn,
-		runnerService: gradv1.NewRunnerServiceClient(conn),
+		conn:           conn,
+		runnerService:  gradv1.NewRunnerServiceClient(conn),
+		executeService: gradv1.NewExecuteServiceClient(conn),
 	}, nil
 }
 
@@ -66,4 +68,9 @@ func (c *Client) Close() error {
 // RunnerService returns the runner service client
 func (c *Client) RunnerService() gradv1.RunnerServiceClient {
 	return c.runnerService
+}
+
+// ExecuteService returns the execute service client
+func (c *Client) ExecuteService() gradv1.ExecuteServiceClient {
+	return c.executeService
 }

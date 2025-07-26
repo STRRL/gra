@@ -289,3 +289,114 @@ var RunnerService_ServiceDesc = grpc.ServiceDesc{
 	},
 	Metadata: "grad/v1/runner_service.proto",
 }
+
+const (
+	ExecuteService_ExecuteCommand_FullMethodName = "/grad.v1.ExecuteService/ExecuteCommand"
+)
+
+// ExecuteServiceClient is the client API for ExecuteService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// ExecuteService manages command execution with automatic runner provisioning
+type ExecuteServiceClient interface {
+	// ExecuteCommand executes a command, creating a runner if needed
+	ExecuteCommand(ctx context.Context, in *ExecuteCommandRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ExecuteCommandStreamResponse], error)
+}
+
+type executeServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewExecuteServiceClient(cc grpc.ClientConnInterface) ExecuteServiceClient {
+	return &executeServiceClient{cc}
+}
+
+func (c *executeServiceClient) ExecuteCommand(ctx context.Context, in *ExecuteCommandRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ExecuteCommandStreamResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ExecuteService_ServiceDesc.Streams[0], ExecuteService_ExecuteCommand_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[ExecuteCommandRequest, ExecuteCommandStreamResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ExecuteService_ExecuteCommandClient = grpc.ServerStreamingClient[ExecuteCommandStreamResponse]
+
+// ExecuteServiceServer is the server API for ExecuteService service.
+// All implementations must embed UnimplementedExecuteServiceServer
+// for forward compatibility.
+//
+// ExecuteService manages command execution with automatic runner provisioning
+type ExecuteServiceServer interface {
+	// ExecuteCommand executes a command, creating a runner if needed
+	ExecuteCommand(*ExecuteCommandRequest, grpc.ServerStreamingServer[ExecuteCommandStreamResponse]) error
+	mustEmbedUnimplementedExecuteServiceServer()
+}
+
+// UnimplementedExecuteServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedExecuteServiceServer struct{}
+
+func (UnimplementedExecuteServiceServer) ExecuteCommand(*ExecuteCommandRequest, grpc.ServerStreamingServer[ExecuteCommandStreamResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method ExecuteCommand not implemented")
+}
+func (UnimplementedExecuteServiceServer) mustEmbedUnimplementedExecuteServiceServer() {}
+func (UnimplementedExecuteServiceServer) testEmbeddedByValue()                        {}
+
+// UnsafeExecuteServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ExecuteServiceServer will
+// result in compilation errors.
+type UnsafeExecuteServiceServer interface {
+	mustEmbedUnimplementedExecuteServiceServer()
+}
+
+func RegisterExecuteServiceServer(s grpc.ServiceRegistrar, srv ExecuteServiceServer) {
+	// If the following call pancis, it indicates UnimplementedExecuteServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&ExecuteService_ServiceDesc, srv)
+}
+
+func _ExecuteService_ExecuteCommand_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ExecuteCommandRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ExecuteServiceServer).ExecuteCommand(m, &grpc.GenericServerStream[ExecuteCommandRequest, ExecuteCommandStreamResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ExecuteService_ExecuteCommandServer = grpc.ServerStreamingServer[ExecuteCommandStreamResponse]
+
+// ExecuteService_ServiceDesc is the grpc.ServiceDesc for ExecuteService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var ExecuteService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "grad.v1.ExecuteService",
+	HandlerType: (*ExecuteServiceServer)(nil),
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "ExecuteCommand",
+			Handler:       _ExecuteService_ExecuteCommand_Handler,
+			ServerStreams: true,
+		},
+	},
+	Metadata: "grad/v1/runner_service.proto",
+}

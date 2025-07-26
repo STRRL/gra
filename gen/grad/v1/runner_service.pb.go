@@ -1023,7 +1023,9 @@ const file_grad_v1_runner_service_proto_rawDesc = "" +
 	"\fDeleteRunner\x12\x1c.grad.v1.DeleteRunnerRequest\x1a\x1d.grad.v1.DeleteRunnerResponse\x12H\n" +
 	"\vListRunners\x12\x1b.grad.v1.ListRunnersRequest\x1a\x1c.grad.v1.ListRunnersResponse\x12_\n" +
 	"\x14ExecuteCommandStream\x12\x1e.grad.v1.ExecuteCommandRequest\x1a%.grad.v1.ExecuteCommandStreamResponse0\x01\x12B\n" +
-	"\tGetRunner\x12\x19.grad.v1.GetRunnerRequest\x1a\x1a.grad.v1.GetRunnerResponseB\x87\x01\n" +
+	"\tGetRunner\x12\x19.grad.v1.GetRunnerRequest\x1a\x1a.grad.v1.GetRunnerResponse2k\n" +
+	"\x0eExecuteService\x12Y\n" +
+	"\x0eExecuteCommand\x12\x1e.grad.v1.ExecuteCommandRequest\x1a%.grad.v1.ExecuteCommandStreamResponse0\x01B\x87\x01\n" +
 	"\vcom.grad.v1B\x12RunnerServiceProtoP\x01Z'github.com/strrl/gra/gen/grad/v1;gradv1\xa2\x02\x03GXX\xaa\x02\aGrad.V1\xca\x02\aGrad\\V1\xe2\x02\x13Grad\\V1\\GPBMetadata\xea\x02\bGrad::V1b\x06proto3"
 
 var (
@@ -1075,13 +1077,15 @@ var file_grad_v1_runner_service_proto_depIdxs = []int32{
 	6,  // 12: grad.v1.RunnerService.ListRunners:input_type -> grad.v1.ListRunnersRequest
 	8,  // 13: grad.v1.RunnerService.ExecuteCommandStream:input_type -> grad.v1.ExecuteCommandRequest
 	10, // 14: grad.v1.RunnerService.GetRunner:input_type -> grad.v1.GetRunnerRequest
-	3,  // 15: grad.v1.RunnerService.CreateRunner:output_type -> grad.v1.CreateRunnerResponse
-	5,  // 16: grad.v1.RunnerService.DeleteRunner:output_type -> grad.v1.DeleteRunnerResponse
-	7,  // 17: grad.v1.RunnerService.ListRunners:output_type -> grad.v1.ListRunnersResponse
-	9,  // 18: grad.v1.RunnerService.ExecuteCommandStream:output_type -> grad.v1.ExecuteCommandStreamResponse
-	11, // 19: grad.v1.RunnerService.GetRunner:output_type -> grad.v1.GetRunnerResponse
-	15, // [15:20] is the sub-list for method output_type
-	10, // [10:15] is the sub-list for method input_type
+	8,  // 15: grad.v1.ExecuteService.ExecuteCommand:input_type -> grad.v1.ExecuteCommandRequest
+	3,  // 16: grad.v1.RunnerService.CreateRunner:output_type -> grad.v1.CreateRunnerResponse
+	5,  // 17: grad.v1.RunnerService.DeleteRunner:output_type -> grad.v1.DeleteRunnerResponse
+	7,  // 18: grad.v1.RunnerService.ListRunners:output_type -> grad.v1.ListRunnersResponse
+	9,  // 19: grad.v1.RunnerService.ExecuteCommandStream:output_type -> grad.v1.ExecuteCommandStreamResponse
+	11, // 20: grad.v1.RunnerService.GetRunner:output_type -> grad.v1.GetRunnerResponse
+	9,  // 21: grad.v1.ExecuteService.ExecuteCommand:output_type -> grad.v1.ExecuteCommandStreamResponse
+	16, // [16:22] is the sub-list for method output_type
+	10, // [10:16] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name
 	10, // [10:10] is the sub-list for extension extendee
 	0,  // [0:10] is the sub-list for field type_name
@@ -1100,7 +1104,7 @@ func file_grad_v1_runner_service_proto_init() {
 			NumEnums:      2,
 			NumMessages:   15,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_grad_v1_runner_service_proto_goTypes,
 		DependencyIndexes: file_grad_v1_runner_service_proto_depIdxs,
