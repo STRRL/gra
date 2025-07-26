@@ -37,6 +37,10 @@ func (s *executeService) ExecuteCommand(ctx context.Context, req *ExecuteCommand
 		// No running runners available, create a new one
 		createReq := &CreateRunnerRequest{
 			Name: fmt.Sprintf("auto-runner-%d", time.Now().Unix()),
+			// Pass through workspace config if available
+			Workspace: req.Workspace,
+			// Pass through environment variables if available
+			Env: req.Env,
 		}
 
 		runner, err := s.runnerService.CreateRunner(ctx, createReq)

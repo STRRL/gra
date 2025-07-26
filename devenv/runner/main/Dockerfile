@@ -43,8 +43,8 @@ RUN mkdir /var/run/sshd && \
     sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 
 # Create workspace structure
-RUN mkdir -p /workspace/{code,outputs,dataset} && \
-    chown -R runner:runner /workspace
+RUN mkdir -p /workspace/code /workspace/outputs /workspace/dataset
+RUN chown -R runner:runner /workspace
 
 # Setup SSH keys directory
 RUN mkdir -p /home/runner/.ssh && \

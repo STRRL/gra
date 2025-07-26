@@ -63,6 +63,13 @@ var createCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name, _ := cmd.Flags().GetString("name")
 		envVars, _ := cmd.Flags().GetStringSlice("env")
+		
+		// S3 workspace configuration flags
+		s3Bucket, _ := cmd.Flags().GetString("s3-bucket")
+		s3Endpoint, _ := cmd.Flags().GetString("s3-endpoint")
+		s3Prefix, _ := cmd.Flags().GetString("s3-prefix")
+		s3Region, _ := cmd.Flags().GetString("s3-region")
+		readOnly, _ := cmd.Flags().GetBool("read-only")
 
 		// Parse environment variables
 		envMap := make(map[string]string)
@@ -76,6 +83,17 @@ var createCmd = &cobra.Command{
 		req := &gradv1.CreateRunnerRequest{
 			Name: name,
 			Env:  envMap,
+		}
+		
+		// Add workspace configuration if S3 bucket is specified
+		if s3Bucket != "" {
+			req.Workspace = &gradv1.WorkspaceConfig{
+				Bucket:    s3Bucket,
+				Endpoint:  s3Endpoint,
+				Prefix:    s3Prefix,
+				Region:    s3Region,
+				ReadOnly:  readOnly,
+			}
 		}
 
 		resp, err := grpcClient.RunnerService().CreateRunner(context.Background(), req)
@@ -246,6 +264,13 @@ func init() {
 	// Create command flags
 	createCmd.Flags().StringP("name", "n", "", "Runner name (optional)")
 	createCmd.Flags().StringSliceP("env", "e", []string{}, "Environment variables (KEY=VALUE)")
+	
+	// S3 workspace configuration flags
+	createCmd.Flags().String("s3-bucket", "", "S3 bucket name for workspace")
+	createCmd.Flags().String("s3-endpoint", "", "S3 endpoint URL (optional, defaults to AWS S3)")
+	createCmd.Flags().String("s3-prefix", "", "S3 path prefix within the bucket (optional)")
+	createCmd.Flags().String("s3-region", "", "AWS region (optional, defaults to us-east-1)")
+	createCmd.Flags().Bool("read-only", false, "Mount S3 bucket as read-only")
 
 	// List command flags
 	listCmd.Flags().StringP("status", "s", "", "Filter by status (creating, running, stopping, stopped, error)")

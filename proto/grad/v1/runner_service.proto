@@ -29,6 +29,27 @@ message CreateRunnerRequest {
   
   // Environment variables to set in the runner
   map<string, string> env = 2;
+  
+  // Workspace configuration for S3 mounting
+  WorkspaceConfig workspace = 3;
+}
+
+// WorkspaceConfig defines S3 workspace configuration
+message WorkspaceConfig {
+  // S3 bucket name
+  string bucket = 1;
+  
+  // S3 endpoint URL (optional, defaults to AWS S3)
+  string endpoint = 2;
+  
+  // S3 path prefix within the bucket (optional)
+  string prefix = 3;
+  
+  // AWS region (optional, defaults to us-east-1)
+  string region = 4;
+  
+  // Read-only mount (optional, defaults to false)
+  bool read_only = 5;
 }
 
 // CreateRunnerResponse defines the response after creating a runner

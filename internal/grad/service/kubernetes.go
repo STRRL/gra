@@ -1,18 +1,18 @@
 package service
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"log/slog"
-	"os/exec"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/remotecommand"
 )
 
 // Well-known constants
@@ -129,8 +129,9 @@ func DefaultKubernetesConfig() *KubernetesConfig {
 
 // KubernetesClient wraps the Kubernetes client with runner-specific operations
 type KubernetesClient struct {
-	clientset *kubernetes.Clientset
-	config    *KubernetesConfig
+	clientset  *kubernetes.Clientset
+	restConfig *rest.Config
+	config     *KubernetesConfig
 }
 
 // NewKubernetesClient creates a new Kubernetes client for runner management
@@ -158,8 +159,9 @@ func NewKubernetesClient(config *KubernetesConfig) (*KubernetesClient, error) {
 	}
 
 	return &KubernetesClient{
-		clientset: clientset,
-		config:    config,
+		clientset:  clientset,
+		restConfig: kubeConfig,
+		config:     config,
 	}, nil
 }
 
@@ -232,106 +234,86 @@ func (k *KubernetesClient) ExecuteCommandStream(ctx context.Context, runnerID, c
 		"runnerID", runnerID,
 		"command", command)
 
-	// For this demo, we'll execute the command locally since we don't have real K8s runners yet
-	// In production, this would use kubectl exec with streaming to the actual pod
-	cmd := exec.CommandContext(ctx, "bash", "-c", command)
+	// Get pod name for the runner
+	podName := k.getPodName(runnerID)
+	
+	slog.Info("Executing command in Kubernetes pod",
+		"podName", podName,
+		"command", command)
 
-	slog.Info("Created command", "cmd", cmd.String())
+	// Create execution request
+	req := k.clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(k.config.Namespace).
+		SubResource("exec")
 
-	// Create pipes for stdout and stderr
-	stdout, err := cmd.StdoutPipe()
+	// Configure exec parameters
+	req.VersionedParams(&corev1.PodExecOptions{
+		Container: "runner", // Always execute in the main runner container
+		Command:   []string{"bash", "-c", command},
+		Stdin:     false,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       false,
+	}, scheme.ParameterCodec)
+
+	slog.Info("Created exec request", "url", req.URL())
+
+	// Create executor
+	exec, err := remotecommand.NewSPDYExecutor(k.restConfig, "POST", req.URL())
 	if err != nil {
-		slog.Error("Failed to create stdout pipe", "error", err)
-		return 1, fmt.Errorf("failed to create stdout pipe: %w", err)
+		slog.Error("Failed to create executor", "error", err)
+		return 1, fmt.Errorf("failed to create executor: %w", err)
 	}
 
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		slog.Error("Failed to create stderr pipe", "error", err)
-		return 1, fmt.Errorf("failed to create stderr pipe: %w", err)
-	}
+	// Create custom streams that write to our channels
+	stdoutStream := &channelWriter{ch: stdoutCh, name: "stdout"}
+	stderrStream := &channelWriter{ch: stderrCh, name: "stderr"}
 
-	// Start the command
-	slog.Info("Starting command execution")
-	if err := cmd.Start(); err != nil {
-		slog.Error("Failed to start command", "error", err)
-		return 1, fmt.Errorf("failed to start command: %w", err)
-	}
+	slog.Info("Starting command execution in pod")
 
-	slog.Info("Command started successfully, setting up streaming")
+	// Execute the command
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdout: stdoutStream,
+		Stderr: stderrStream,
+	})
 
-	// Stream stdout in a goroutine
-	go func() {
-		defer func() {
-			slog.Info("Closing stdout channel")
-			close(stdoutCh)
-		}()
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			line := scanner.Bytes()
-			if len(line) > 0 {
-				// Copy the line since scanner reuses the buffer
-				lineCopy := make([]byte, len(line)+1)
-				copy(lineCopy, line)
-				lineCopy[len(line)] = '\n'
+	// Close channels when done
+	close(stdoutCh)
+	close(stderrCh)
 
-				select {
-				case <-ctx.Done():
-					slog.Info("Context cancelled, stopping stdout streaming")
-					return
-				case stdoutCh <- lineCopy:
-					slog.Debug("Sent stdout line", "line", string(lineCopy))
-				}
-			}
-		}
-		if err := scanner.Err(); err != nil {
-			slog.Error("Error reading stdout", "error", err)
-		}
-	}()
-
-	// Stream stderr in a goroutine
-	go func() {
-		defer func() {
-			slog.Info("Closing stderr channel")
-			close(stderrCh)
-		}()
-		scanner := bufio.NewScanner(stderr)
-		for scanner.Scan() {
-			line := scanner.Bytes()
-			if len(line) > 0 {
-				// Copy the line since scanner reuses the buffer
-				lineCopy := make([]byte, len(line)+1)
-				copy(lineCopy, line)
-				lineCopy[len(line)] = '\n'
-
-				select {
-				case <-ctx.Done():
-					slog.Info("Context cancelled, stopping stderr streaming")
-					return
-				case stderrCh <- lineCopy:
-					slog.Debug("Sent stderr line", "line", string(lineCopy))
-				}
-			}
-		}
-		if err := scanner.Err(); err != nil {
-			slog.Error("Error reading stderr", "error", err)
-		}
-	}()
-
-	// Wait for command to complete
-	slog.Info("Waiting for command to complete")
-	err = cmd.Wait()
 	if err != nil {
 		slog.Error("Command execution failed", "error", err)
-		if exitError, ok := err.(*exec.ExitError); ok {
-			slog.Info("Command exited with non-zero code", "exit_code", exitError.ExitCode())
-			return int32(exitError.ExitCode()), nil
-		}
-		return 1, err
+		// For now, return exit code 1 for any error
+		// TODO: Add proper exit code extraction when client-go API is clarified
+		return 1, fmt.Errorf("command execution failed: %w", err)
 	}
 
 	slog.Info("Command completed successfully")
 	return 0, nil
+}
+
+// channelWriter implements io.Writer and writes to a channel
+type channelWriter struct {
+	ch   chan<- []byte
+	name string
+}
+
+func (cw *channelWriter) Write(p []byte) (n int, err error) {
+	if len(p) > 0 {
+		// Copy the data since it might be reused
+		dataCopy := make([]byte, len(p))
+		copy(dataCopy, p)
+		
+		select {
+		case cw.ch <- dataCopy:
+			slog.Debug("Sent data to channel", "stream", cw.name, "bytes", len(dataCopy))
+		default:
+			slog.Warn("Channel full, dropping data", "stream", cw.name, "bytes", len(dataCopy))
+		}
+	}
+	return len(p), nil
 }
 
 // PodToRunner converts a Kubernetes pod to a domain Runner object

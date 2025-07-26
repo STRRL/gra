@@ -22,6 +22,16 @@ type CreateRunnerRequest struct {
 	Name      string
 	Resources *ResourceRequirements
 	Env       map[string]string
+	Workspace *WorkspaceConfig
+}
+
+// WorkspaceConfig represents S3 workspace configuration
+type WorkspaceConfig struct {
+	Bucket    string
+	Endpoint  string
+	Prefix    string
+	Region    string
+	ReadOnly  bool
 }
 
 // ResourceRequirements represents resource allocation for a runner
@@ -42,6 +52,7 @@ type Runner struct {
 	SSH       *SSHDetails
 	IPAddress string
 	Env       map[string]string
+	Workspace *WorkspaceConfig
 }
 
 // RunnerStatus represents the status of a runner
@@ -71,6 +82,8 @@ type ExecuteCommandRequest struct {
 	Shell      string
 	Timeout    int32
 	WorkingDir string
+	Workspace  *WorkspaceConfig
+	Env        map[string]string
 }
 
 
@@ -143,6 +156,21 @@ func FromProtoCreateRunnerRequest(req *gradv1.CreateRunnerRequest) *CreateRunner
 		Name:      req.Name,
 		Resources: nil, // Resources are no longer in the request - will use preset
 		Env:       req.Env,
+		Workspace: FromProtoWorkspaceConfig(req.Workspace),
+	}
+}
+
+// FromProtoWorkspaceConfig converts proto WorkspaceConfig to domain
+func FromProtoWorkspaceConfig(wc *gradv1.WorkspaceConfig) *WorkspaceConfig {
+	if wc == nil {
+		return nil
+	}
+	return &WorkspaceConfig{
+		Bucket:    wc.Bucket,
+		Endpoint:  wc.Endpoint,
+		Prefix:    wc.Prefix,
+		Region:    wc.Region,
+		ReadOnly:  wc.ReadOnly,
 	}
 }
 
@@ -166,6 +194,8 @@ func FromProtoExecuteCommandRequest(req *gradv1.ExecuteCommandRequest) *ExecuteC
 		Shell:      req.Shell,
 		Timeout:    req.Timeout,
 		WorkingDir: req.WorkingDir,
+		// Note: Workspace and Env are not in the proto ExecuteCommandRequest yet
+		// They would need to be added if ExecuteService needs to accept workspace config
 	}
 }
 

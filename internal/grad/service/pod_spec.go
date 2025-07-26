@@ -21,6 +21,7 @@ type PodCreationRequest struct {
 	MemoryRequest string
 	SSHPort       int32
 	Env           map[string]string
+	Workspace     *WorkspaceConfig
 }
 
 // PodDeletionRequest represents a request to delete a pod
@@ -48,6 +49,7 @@ func BuildPodCreationRequest(runner *Runner, config *KubernetesConfig) *PodCreat
 		MemoryRequest: config.DefaultMemory,
 		SSHPort:       config.SSHPort,
 		Env:           runner.Env,
+		Workspace:     runner.Workspace,
 	}
 }
 
@@ -96,16 +98,61 @@ func (req *PodCreationRequest) ToPodSpec() *corev1.Pod {
 		},
 	}
 
-	// Add S3 configuration if present in custom environment variables
+	// Add AWS credentials from custom environment variables first
 	for key, value := range req.Env {
-		if key == "AWS_ACCESS_KEY_ID" || key == "AWS_SECRET_ACCESS_KEY" || 
-		   key == "S3_BUCKET" || key == "S3_ENDPOINT" {
+		if key == "AWS_ACCESS_KEY_ID" || key == "AWS_SECRET_ACCESS_KEY" || key == "AWS_SESSION_TOKEN" {
 			s3fsEnv = append(s3fsEnv, corev1.EnvVar{
 				Name:  key,
 				Value: value,
 			})
 		}
 	}
+
+	// Add workspace S3 configuration if present
+	if req.Workspace != nil && req.Workspace.Bucket != "" {
+		s3fsEnv = append(s3fsEnv, corev1.EnvVar{
+			Name:  "S3_BUCKET",
+			Value: req.Workspace.Bucket,
+		})
+		
+		if req.Workspace.Endpoint != "" {
+			s3fsEnv = append(s3fsEnv, corev1.EnvVar{
+				Name:  "S3_ENDPOINT",
+				Value: req.Workspace.Endpoint,
+			})
+		}
+		
+		if req.Workspace.Prefix != "" {
+			s3fsEnv = append(s3fsEnv, corev1.EnvVar{
+				Name:  "S3_PREFIX",
+				Value: req.Workspace.Prefix,
+			})
+		}
+		
+		if req.Workspace.Region != "" {
+			s3fsEnv = append(s3fsEnv, corev1.EnvVar{
+				Name:  "AWS_DEFAULT_REGION",
+				Value: req.Workspace.Region,
+			})
+		}
+		
+		// Always use hardcoded mount path
+		s3fsEnv = append(s3fsEnv, corev1.EnvVar{
+			Name:  "MOUNT_PATH",
+			Value: "/workspace/dataset",
+		})
+		
+		// Set read-only flag
+		if req.Workspace.ReadOnly {
+			s3fsEnv = append(s3fsEnv, corev1.EnvVar{
+				Name:  "MOUNT_OPTIONS",
+				Value: "ro",
+			})
+		}
+	}
+
+	// Always use hardcoded mount path
+	mountPath := "/workspace/dataset"
 
 	// Create shared volume for workspace
 	workspaceVolume := corev1.Volume{
@@ -140,16 +187,14 @@ func (req *PodCreationRequest) ToPodSpec() *corev1.Pod {
 		},
 		Spec: corev1.PodSpec{
 			RestartPolicy: corev1.RestartPolicyNever,
+			ShareProcessNamespace: &[]bool{true}[0],
 			Volumes: []corev1.Volume{workspaceVolume},
-			// S3FS sidecar as init container with OnFailure restart policy
-			InitContainers: []corev1.Container{
+			// Regular containers - S3FS sidecar and main runner
+			Containers: []corev1.Container{
+				// S3FS sidecar container
 				{
-					Name:          "s3fs-sidecar",
-					Image:         req.S3FSImage,
-					RestartPolicy: func() *corev1.ContainerRestartPolicy { 
-						policy := corev1.ContainerRestartPolicyAlways
-						return &policy
-					}(),
+					Name:  "s3fs-sidecar",
+					Image: req.S3FSImage,
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("50m"),
@@ -163,17 +208,19 @@ func (req *PodCreationRequest) ToPodSpec() *corev1.Pod {
 					Env: s3fsEnv,
 					VolumeMounts: []corev1.VolumeMount{
 						{
-							Name:      "workspace",
-							MountPath: "/workspace",
+							Name:             "workspace",
+							MountPath:        mountPath,
+							MountPropagation: &[]corev1.MountPropagationMode{corev1.MountPropagationBidirectional}[0],
 						},
 					},
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: &[]bool{true}[0],
+						Capabilities: &corev1.Capabilities{
+							Add: []corev1.Capability{"SYS_ADMIN"},
+						},
 					},
 				},
-			},
-			// Main runner container
-			Containers: []corev1.Container{
+				// Main runner container
 				{
 					Name:  "runner",
 					Image: req.Image,
@@ -197,12 +244,16 @@ func (req *PodCreationRequest) ToPodSpec() *corev1.Pod {
 					Env: mainEnv,
 					VolumeMounts: []corev1.VolumeMount{
 						{
-							Name:      "workspace",
-							MountPath: "/workspace",
+							Name:             "workspace",
+							MountPath:        mountPath,
+							MountPropagation: &[]corev1.MountPropagationMode{corev1.MountPropagationBidirectional}[0],
 						},
 					},
 					Command: []string{"/usr/local/bin/entrypoint.sh"},
 					Args:    []string{"sleep", "infinity"},
+					SecurityContext: &corev1.SecurityContext{
+						Privileged: &[]bool{true}[0],
+					},
 				},
 			},
 		},

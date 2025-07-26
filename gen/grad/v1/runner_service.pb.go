@@ -139,7 +139,9 @@ type CreateRunnerRequest struct {
 	// Name of the runner (optional, will be auto-generated if not provided)
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Environment variables to set in the runner
-	Env           map[string]string `protobuf:"bytes,2,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Env map[string]string `protobuf:"bytes,2,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Workspace configuration for S3 mounting
+	Workspace     *WorkspaceConfig `protobuf:"bytes,3,opt,name=workspace,proto3" json:"workspace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -188,6 +190,95 @@ func (x *CreateRunnerRequest) GetEnv() map[string]string {
 	return nil
 }
 
+func (x *CreateRunnerRequest) GetWorkspace() *WorkspaceConfig {
+	if x != nil {
+		return x.Workspace
+	}
+	return nil
+}
+
+// WorkspaceConfig defines S3 workspace configuration
+type WorkspaceConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// S3 bucket name
+	Bucket string `protobuf:"bytes,1,opt,name=bucket,proto3" json:"bucket,omitempty"`
+	// S3 endpoint URL (optional, defaults to AWS S3)
+	Endpoint string `protobuf:"bytes,2,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	// S3 path prefix within the bucket (optional)
+	Prefix string `protobuf:"bytes,3,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	// AWS region (optional, defaults to us-east-1)
+	Region string `protobuf:"bytes,4,opt,name=region,proto3" json:"region,omitempty"`
+	// Read-only mount (optional, defaults to false)
+	ReadOnly      bool `protobuf:"varint,5,opt,name=read_only,json=readOnly,proto3" json:"read_only,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkspaceConfig) Reset() {
+	*x = WorkspaceConfig{}
+	mi := &file_grad_v1_runner_service_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkspaceConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkspaceConfig) ProtoMessage() {}
+
+func (x *WorkspaceConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_grad_v1_runner_service_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkspaceConfig.ProtoReflect.Descriptor instead.
+func (*WorkspaceConfig) Descriptor() ([]byte, []int) {
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *WorkspaceConfig) GetBucket() string {
+	if x != nil {
+		return x.Bucket
+	}
+	return ""
+}
+
+func (x *WorkspaceConfig) GetEndpoint() string {
+	if x != nil {
+		return x.Endpoint
+	}
+	return ""
+}
+
+func (x *WorkspaceConfig) GetPrefix() string {
+	if x != nil {
+		return x.Prefix
+	}
+	return ""
+}
+
+func (x *WorkspaceConfig) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
+func (x *WorkspaceConfig) GetReadOnly() bool {
+	if x != nil {
+		return x.ReadOnly
+	}
+	return false
+}
+
 // CreateRunnerResponse defines the response after creating a runner
 type CreateRunnerResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -199,7 +290,7 @@ type CreateRunnerResponse struct {
 
 func (x *CreateRunnerResponse) Reset() {
 	*x = CreateRunnerResponse{}
-	mi := &file_grad_v1_runner_service_proto_msgTypes[1]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -211,7 +302,7 @@ func (x *CreateRunnerResponse) String() string {
 func (*CreateRunnerResponse) ProtoMessage() {}
 
 func (x *CreateRunnerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_grad_v1_runner_service_proto_msgTypes[1]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -224,7 +315,7 @@ func (x *CreateRunnerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRunnerResponse.ProtoReflect.Descriptor instead.
 func (*CreateRunnerResponse) Descriptor() ([]byte, []int) {
-	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{1}
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CreateRunnerResponse) GetRunner() *Runner {
@@ -245,7 +336,7 @@ type DeleteRunnerRequest struct {
 
 func (x *DeleteRunnerRequest) Reset() {
 	*x = DeleteRunnerRequest{}
-	mi := &file_grad_v1_runner_service_proto_msgTypes[2]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -257,7 +348,7 @@ func (x *DeleteRunnerRequest) String() string {
 func (*DeleteRunnerRequest) ProtoMessage() {}
 
 func (x *DeleteRunnerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_grad_v1_runner_service_proto_msgTypes[2]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -270,7 +361,7 @@ func (x *DeleteRunnerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteRunnerRequest.ProtoReflect.Descriptor instead.
 func (*DeleteRunnerRequest) Descriptor() ([]byte, []int) {
-	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{2}
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *DeleteRunnerRequest) GetRunnerId() string {
@@ -291,7 +382,7 @@ type DeleteRunnerResponse struct {
 
 func (x *DeleteRunnerResponse) Reset() {
 	*x = DeleteRunnerResponse{}
-	mi := &file_grad_v1_runner_service_proto_msgTypes[3]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -303,7 +394,7 @@ func (x *DeleteRunnerResponse) String() string {
 func (*DeleteRunnerResponse) ProtoMessage() {}
 
 func (x *DeleteRunnerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_grad_v1_runner_service_proto_msgTypes[3]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -316,7 +407,7 @@ func (x *DeleteRunnerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteRunnerResponse.ProtoReflect.Descriptor instead.
 func (*DeleteRunnerResponse) Descriptor() ([]byte, []int) {
-	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{3}
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DeleteRunnerResponse) GetMessage() string {
@@ -341,7 +432,7 @@ type ListRunnersRequest struct {
 
 func (x *ListRunnersRequest) Reset() {
 	*x = ListRunnersRequest{}
-	mi := &file_grad_v1_runner_service_proto_msgTypes[4]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -353,7 +444,7 @@ func (x *ListRunnersRequest) String() string {
 func (*ListRunnersRequest) ProtoMessage() {}
 
 func (x *ListRunnersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_grad_v1_runner_service_proto_msgTypes[4]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -366,7 +457,7 @@ func (x *ListRunnersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunnersRequest.ProtoReflect.Descriptor instead.
 func (*ListRunnersRequest) Descriptor() ([]byte, []int) {
-	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{4}
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ListRunnersRequest) GetStatus() RunnerStatus {
@@ -403,7 +494,7 @@ type ListRunnersResponse struct {
 
 func (x *ListRunnersResponse) Reset() {
 	*x = ListRunnersResponse{}
-	mi := &file_grad_v1_runner_service_proto_msgTypes[5]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -415,7 +506,7 @@ func (x *ListRunnersResponse) String() string {
 func (*ListRunnersResponse) ProtoMessage() {}
 
 func (x *ListRunnersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_grad_v1_runner_service_proto_msgTypes[5]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -428,7 +519,7 @@ func (x *ListRunnersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunnersResponse.ProtoReflect.Descriptor instead.
 func (*ListRunnersResponse) Descriptor() ([]byte, []int) {
-	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{5}
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListRunnersResponse) GetRunners() []*Runner {
@@ -464,7 +555,7 @@ type ExecuteCommandRequest struct {
 
 func (x *ExecuteCommandRequest) Reset() {
 	*x = ExecuteCommandRequest{}
-	mi := &file_grad_v1_runner_service_proto_msgTypes[6]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -476,7 +567,7 @@ func (x *ExecuteCommandRequest) String() string {
 func (*ExecuteCommandRequest) ProtoMessage() {}
 
 func (x *ExecuteCommandRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_grad_v1_runner_service_proto_msgTypes[6]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -489,7 +580,7 @@ func (x *ExecuteCommandRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteCommandRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteCommandRequest) Descriptor() ([]byte, []int) {
-	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{6}
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ExecuteCommandRequest) GetRunnerId() string {
@@ -542,7 +633,7 @@ type ExecuteCommandStreamResponse struct {
 
 func (x *ExecuteCommandStreamResponse) Reset() {
 	*x = ExecuteCommandStreamResponse{}
-	mi := &file_grad_v1_runner_service_proto_msgTypes[7]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -554,7 +645,7 @@ func (x *ExecuteCommandStreamResponse) String() string {
 func (*ExecuteCommandStreamResponse) ProtoMessage() {}
 
 func (x *ExecuteCommandStreamResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_grad_v1_runner_service_proto_msgTypes[7]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -567,7 +658,7 @@ func (x *ExecuteCommandStreamResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteCommandStreamResponse.ProtoReflect.Descriptor instead.
 func (*ExecuteCommandStreamResponse) Descriptor() ([]byte, []int) {
-	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{7}
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ExecuteCommandStreamResponse) GetType() StreamType {
@@ -602,7 +693,7 @@ type GetRunnerRequest struct {
 
 func (x *GetRunnerRequest) Reset() {
 	*x = GetRunnerRequest{}
-	mi := &file_grad_v1_runner_service_proto_msgTypes[8]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -614,7 +705,7 @@ func (x *GetRunnerRequest) String() string {
 func (*GetRunnerRequest) ProtoMessage() {}
 
 func (x *GetRunnerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_grad_v1_runner_service_proto_msgTypes[8]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -627,7 +718,7 @@ func (x *GetRunnerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunnerRequest.ProtoReflect.Descriptor instead.
 func (*GetRunnerRequest) Descriptor() ([]byte, []int) {
-	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{8}
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetRunnerRequest) GetRunnerId() string {
@@ -648,7 +739,7 @@ type GetRunnerResponse struct {
 
 func (x *GetRunnerResponse) Reset() {
 	*x = GetRunnerResponse{}
-	mi := &file_grad_v1_runner_service_proto_msgTypes[9]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -660,7 +751,7 @@ func (x *GetRunnerResponse) String() string {
 func (*GetRunnerResponse) ProtoMessage() {}
 
 func (x *GetRunnerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_grad_v1_runner_service_proto_msgTypes[9]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -673,7 +764,7 @@ func (x *GetRunnerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunnerResponse.ProtoReflect.Descriptor instead.
 func (*GetRunnerResponse) Descriptor() ([]byte, []int) {
-	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{9}
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetRunnerResponse) GetRunner() *Runner {
@@ -710,7 +801,7 @@ type Runner struct {
 
 func (x *Runner) Reset() {
 	*x = Runner{}
-	mi := &file_grad_v1_runner_service_proto_msgTypes[10]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -722,7 +813,7 @@ func (x *Runner) String() string {
 func (*Runner) ProtoMessage() {}
 
 func (x *Runner) ProtoReflect() protoreflect.Message {
-	mi := &file_grad_v1_runner_service_proto_msgTypes[10]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -735,7 +826,7 @@ func (x *Runner) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Runner.ProtoReflect.Descriptor instead.
 func (*Runner) Descriptor() ([]byte, []int) {
-	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{10}
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Runner) GetId() string {
@@ -816,7 +907,7 @@ type ResourceRequirements struct {
 
 func (x *ResourceRequirements) Reset() {
 	*x = ResourceRequirements{}
-	mi := &file_grad_v1_runner_service_proto_msgTypes[11]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -828,7 +919,7 @@ func (x *ResourceRequirements) String() string {
 func (*ResourceRequirements) ProtoMessage() {}
 
 func (x *ResourceRequirements) ProtoReflect() protoreflect.Message {
-	mi := &file_grad_v1_runner_service_proto_msgTypes[11]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -841,7 +932,7 @@ func (x *ResourceRequirements) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceRequirements.ProtoReflect.Descriptor instead.
 func (*ResourceRequirements) Descriptor() ([]byte, []int) {
-	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{11}
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ResourceRequirements) GetCpuMillicores() int32 {
@@ -882,7 +973,7 @@ type SSHDetails struct {
 
 func (x *SSHDetails) Reset() {
 	*x = SSHDetails{}
-	mi := &file_grad_v1_runner_service_proto_msgTypes[12]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -894,7 +985,7 @@ func (x *SSHDetails) String() string {
 func (*SSHDetails) ProtoMessage() {}
 
 func (x *SSHDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_grad_v1_runner_service_proto_msgTypes[12]
+	mi := &file_grad_v1_runner_service_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -907,7 +998,7 @@ func (x *SSHDetails) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SSHDetails.ProtoReflect.Descriptor instead.
 func (*SSHDetails) Descriptor() ([]byte, []int) {
-	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{12}
+	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SSHDetails) GetHost() string {
@@ -942,13 +1033,20 @@ var File_grad_v1_runner_service_proto protoreflect.FileDescriptor
 
 const file_grad_v1_runner_service_proto_rawDesc = "" +
 	"\n" +
-	"\x1cgrad/v1/runner_service.proto\x12\agrad.v1\"\x9a\x01\n" +
+	"\x1cgrad/v1/runner_service.proto\x12\agrad.v1\"\xd2\x01\n" +
 	"\x13CreateRunnerRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x127\n" +
-	"\x03env\x18\x02 \x03(\v2%.grad.v1.CreateRunnerRequest.EnvEntryR\x03env\x1a6\n" +
+	"\x03env\x18\x02 \x03(\v2%.grad.v1.CreateRunnerRequest.EnvEntryR\x03env\x126\n" +
+	"\tworkspace\x18\x03 \x01(\v2\x18.grad.v1.WorkspaceConfigR\tworkspace\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"?\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x92\x01\n" +
+	"\x0fWorkspaceConfig\x12\x16\n" +
+	"\x06bucket\x18\x01 \x01(\tR\x06bucket\x12\x1a\n" +
+	"\bendpoint\x18\x02 \x01(\tR\bendpoint\x12\x16\n" +
+	"\x06prefix\x18\x03 \x01(\tR\x06prefix\x12\x16\n" +
+	"\x06region\x18\x04 \x01(\tR\x06region\x12\x1b\n" +
+	"\tread_only\x18\x05 \x01(\bR\breadOnly\"?\n" +
 	"\x14CreateRunnerResponse\x12'\n" +
 	"\x06runner\x18\x01 \x01(\v2\x0f.grad.v1.RunnerR\x06runner\"2\n" +
 	"\x13DeleteRunnerRequest\x12\x1b\n" +
@@ -1041,54 +1139,56 @@ func file_grad_v1_runner_service_proto_rawDescGZIP() []byte {
 }
 
 var file_grad_v1_runner_service_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_grad_v1_runner_service_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_grad_v1_runner_service_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_grad_v1_runner_service_proto_goTypes = []any{
 	(StreamType)(0),                      // 0: grad.v1.StreamType
 	(RunnerStatus)(0),                    // 1: grad.v1.RunnerStatus
 	(*CreateRunnerRequest)(nil),          // 2: grad.v1.CreateRunnerRequest
-	(*CreateRunnerResponse)(nil),         // 3: grad.v1.CreateRunnerResponse
-	(*DeleteRunnerRequest)(nil),          // 4: grad.v1.DeleteRunnerRequest
-	(*DeleteRunnerResponse)(nil),         // 5: grad.v1.DeleteRunnerResponse
-	(*ListRunnersRequest)(nil),           // 6: grad.v1.ListRunnersRequest
-	(*ListRunnersResponse)(nil),          // 7: grad.v1.ListRunnersResponse
-	(*ExecuteCommandRequest)(nil),        // 8: grad.v1.ExecuteCommandRequest
-	(*ExecuteCommandStreamResponse)(nil), // 9: grad.v1.ExecuteCommandStreamResponse
-	(*GetRunnerRequest)(nil),             // 10: grad.v1.GetRunnerRequest
-	(*GetRunnerResponse)(nil),            // 11: grad.v1.GetRunnerResponse
-	(*Runner)(nil),                       // 12: grad.v1.Runner
-	(*ResourceRequirements)(nil),         // 13: grad.v1.ResourceRequirements
-	(*SSHDetails)(nil),                   // 14: grad.v1.SSHDetails
-	nil,                                  // 15: grad.v1.CreateRunnerRequest.EnvEntry
-	nil,                                  // 16: grad.v1.Runner.EnvEntry
+	(*WorkspaceConfig)(nil),              // 3: grad.v1.WorkspaceConfig
+	(*CreateRunnerResponse)(nil),         // 4: grad.v1.CreateRunnerResponse
+	(*DeleteRunnerRequest)(nil),          // 5: grad.v1.DeleteRunnerRequest
+	(*DeleteRunnerResponse)(nil),         // 6: grad.v1.DeleteRunnerResponse
+	(*ListRunnersRequest)(nil),           // 7: grad.v1.ListRunnersRequest
+	(*ListRunnersResponse)(nil),          // 8: grad.v1.ListRunnersResponse
+	(*ExecuteCommandRequest)(nil),        // 9: grad.v1.ExecuteCommandRequest
+	(*ExecuteCommandStreamResponse)(nil), // 10: grad.v1.ExecuteCommandStreamResponse
+	(*GetRunnerRequest)(nil),             // 11: grad.v1.GetRunnerRequest
+	(*GetRunnerResponse)(nil),            // 12: grad.v1.GetRunnerResponse
+	(*Runner)(nil),                       // 13: grad.v1.Runner
+	(*ResourceRequirements)(nil),         // 14: grad.v1.ResourceRequirements
+	(*SSHDetails)(nil),                   // 15: grad.v1.SSHDetails
+	nil,                                  // 16: grad.v1.CreateRunnerRequest.EnvEntry
+	nil,                                  // 17: grad.v1.Runner.EnvEntry
 }
 var file_grad_v1_runner_service_proto_depIdxs = []int32{
-	15, // 0: grad.v1.CreateRunnerRequest.env:type_name -> grad.v1.CreateRunnerRequest.EnvEntry
-	12, // 1: grad.v1.CreateRunnerResponse.runner:type_name -> grad.v1.Runner
-	1,  // 2: grad.v1.ListRunnersRequest.status:type_name -> grad.v1.RunnerStatus
-	12, // 3: grad.v1.ListRunnersResponse.runners:type_name -> grad.v1.Runner
-	0,  // 4: grad.v1.ExecuteCommandStreamResponse.type:type_name -> grad.v1.StreamType
-	12, // 5: grad.v1.GetRunnerResponse.runner:type_name -> grad.v1.Runner
-	1,  // 6: grad.v1.Runner.status:type_name -> grad.v1.RunnerStatus
-	13, // 7: grad.v1.Runner.resources:type_name -> grad.v1.ResourceRequirements
-	14, // 8: grad.v1.Runner.ssh:type_name -> grad.v1.SSHDetails
-	16, // 9: grad.v1.Runner.env:type_name -> grad.v1.Runner.EnvEntry
-	2,  // 10: grad.v1.RunnerService.CreateRunner:input_type -> grad.v1.CreateRunnerRequest
-	4,  // 11: grad.v1.RunnerService.DeleteRunner:input_type -> grad.v1.DeleteRunnerRequest
-	6,  // 12: grad.v1.RunnerService.ListRunners:input_type -> grad.v1.ListRunnersRequest
-	8,  // 13: grad.v1.RunnerService.ExecuteCommandStream:input_type -> grad.v1.ExecuteCommandRequest
-	10, // 14: grad.v1.RunnerService.GetRunner:input_type -> grad.v1.GetRunnerRequest
-	8,  // 15: grad.v1.ExecuteService.ExecuteCommand:input_type -> grad.v1.ExecuteCommandRequest
-	3,  // 16: grad.v1.RunnerService.CreateRunner:output_type -> grad.v1.CreateRunnerResponse
-	5,  // 17: grad.v1.RunnerService.DeleteRunner:output_type -> grad.v1.DeleteRunnerResponse
-	7,  // 18: grad.v1.RunnerService.ListRunners:output_type -> grad.v1.ListRunnersResponse
-	9,  // 19: grad.v1.RunnerService.ExecuteCommandStream:output_type -> grad.v1.ExecuteCommandStreamResponse
-	11, // 20: grad.v1.RunnerService.GetRunner:output_type -> grad.v1.GetRunnerResponse
-	9,  // 21: grad.v1.ExecuteService.ExecuteCommand:output_type -> grad.v1.ExecuteCommandStreamResponse
-	16, // [16:22] is the sub-list for method output_type
-	10, // [10:16] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	16, // 0: grad.v1.CreateRunnerRequest.env:type_name -> grad.v1.CreateRunnerRequest.EnvEntry
+	3,  // 1: grad.v1.CreateRunnerRequest.workspace:type_name -> grad.v1.WorkspaceConfig
+	13, // 2: grad.v1.CreateRunnerResponse.runner:type_name -> grad.v1.Runner
+	1,  // 3: grad.v1.ListRunnersRequest.status:type_name -> grad.v1.RunnerStatus
+	13, // 4: grad.v1.ListRunnersResponse.runners:type_name -> grad.v1.Runner
+	0,  // 5: grad.v1.ExecuteCommandStreamResponse.type:type_name -> grad.v1.StreamType
+	13, // 6: grad.v1.GetRunnerResponse.runner:type_name -> grad.v1.Runner
+	1,  // 7: grad.v1.Runner.status:type_name -> grad.v1.RunnerStatus
+	14, // 8: grad.v1.Runner.resources:type_name -> grad.v1.ResourceRequirements
+	15, // 9: grad.v1.Runner.ssh:type_name -> grad.v1.SSHDetails
+	17, // 10: grad.v1.Runner.env:type_name -> grad.v1.Runner.EnvEntry
+	2,  // 11: grad.v1.RunnerService.CreateRunner:input_type -> grad.v1.CreateRunnerRequest
+	5,  // 12: grad.v1.RunnerService.DeleteRunner:input_type -> grad.v1.DeleteRunnerRequest
+	7,  // 13: grad.v1.RunnerService.ListRunners:input_type -> grad.v1.ListRunnersRequest
+	9,  // 14: grad.v1.RunnerService.ExecuteCommandStream:input_type -> grad.v1.ExecuteCommandRequest
+	11, // 15: grad.v1.RunnerService.GetRunner:input_type -> grad.v1.GetRunnerRequest
+	9,  // 16: grad.v1.ExecuteService.ExecuteCommand:input_type -> grad.v1.ExecuteCommandRequest
+	4,  // 17: grad.v1.RunnerService.CreateRunner:output_type -> grad.v1.CreateRunnerResponse
+	6,  // 18: grad.v1.RunnerService.DeleteRunner:output_type -> grad.v1.DeleteRunnerResponse
+	8,  // 19: grad.v1.RunnerService.ListRunners:output_type -> grad.v1.ListRunnersResponse
+	10, // 20: grad.v1.RunnerService.ExecuteCommandStream:output_type -> grad.v1.ExecuteCommandStreamResponse
+	12, // 21: grad.v1.RunnerService.GetRunner:output_type -> grad.v1.GetRunnerResponse
+	10, // 22: grad.v1.ExecuteService.ExecuteCommand:output_type -> grad.v1.ExecuteCommandStreamResponse
+	17, // [17:23] is the sub-list for method output_type
+	11, // [11:17] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_grad_v1_runner_service_proto_init() }
@@ -1102,7 +1202,7 @@ func file_grad_v1_runner_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_grad_v1_runner_service_proto_rawDesc), len(file_grad_v1_runner_service_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

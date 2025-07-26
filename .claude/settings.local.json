@@ -30,7 +30,10 @@
       "WebFetch(domain:cloud.google.com)",
       "Bash(skaffold diagnose:*)",
       "WebFetch(domain:kubernetes.io)",
-      "WebFetch(domain:duckdb.org)"
+      "WebFetch(domain:duckdb.org)",
+      "Bash(kubectl exec:*)",
+      "Bash(go list:*)",
+      "Bash(kubectl get pods:*)"
     ],
     "deny": []
   }

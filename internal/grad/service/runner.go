@@ -58,6 +58,7 @@ func (s *runnerService) CreateRunner(ctx context.Context, req *CreateRunnerReque
 		},
 		IPAddress: "127.0.0.1", // Will be updated with actual pod IP
 		Env:       req.Env,
+		Workspace: req.Workspace,
 	}
 
 	// Create Kubernetes pod with proper annotations and finalizers
