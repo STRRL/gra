@@ -23,6 +23,17 @@ make clean          # Clean build artifacts
 # Build artifacts are placed in the out/ directory
 ```
 
+### Architecture Support
+```bash
+# Multi-architecture support (ARM64/AMD64)
+# Containers automatically detect target architecture via Docker buildkit
+# Supports both Intel/AMD (amd64) and Apple Silicon (arm64) development
+
+# DuckDB CLI binary automatically downloads correct architecture:
+# - arm64 → downloads arm64 binary  
+# - amd64 → downloads amd64 binary
+```
+
 ### Development Workflow
 ```bash
 # Start development environment (includes minikube start)

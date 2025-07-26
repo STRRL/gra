@@ -16,7 +16,7 @@ build:
         buildArgs:
           CGO_ENABLED: "0"
           GOOS: "linux"
-          GOARCH: "amd64"
+          # Use TARGETARCH from buildkit for multi-arch support
     
     # Main runner container (pre-built for dynamic creation by grad)
     - image: grad-runner

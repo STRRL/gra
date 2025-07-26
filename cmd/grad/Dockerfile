@@ -10,8 +10,9 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the grad binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o grad ./cmd/grad
+# Build the grad binary with automatic architecture detection
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} go build -o grad ./cmd/grad
 
 # Final stage
 FROM debian:bookworm-slim

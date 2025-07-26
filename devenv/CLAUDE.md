@@ -77,8 +77,10 @@ probes:
 ### Image Configuration
 
 - **grad service**: Built from `cmd/grad/Dockerfile`
-- **runner**: Built from `devenv/runner/Dockerfile`
+- **runner**: Built from `devenv/runner/main/Dockerfile`
+- **s3fs sidecar**: Built from `devenv/runner/s3fs/Dockerfile`
 - **Tags**: Automatically generated from git commit hash via Skaffold
+- **Architecture**: Multi-arch support (ARM64/AMD64) via Docker buildkit TARGETARCH
 
 ## Development Workflow Commands
 

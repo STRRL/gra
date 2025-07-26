@@ -12,8 +12,10 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install DuckDB CLI binary
-RUN curl -L https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-linux-amd64.zip -o /tmp/duckdb.zip && \
+# Install DuckDB CLI binary with architecture detection
+ARG TARGETARCH
+RUN ARCH=${TARGETARCH:-amd64} && \
+    curl -L https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-linux-${ARCH}.zip -o /tmp/duckdb.zip && \
     unzip /tmp/duckdb.zip -d /tmp && \
     mv /tmp/duckdb /usr/local/bin/duckdb && \
     chmod +x /usr/local/bin/duckdb && \
