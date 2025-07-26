@@ -3,18 +3,21 @@
 ## Core Concepts
 
 ### User Workspace
+
 - Local directory on user's machine under the working directory
 - Contains workspace configuration files
 - Stores dataset connection descriptions
 - Mount point for remote runner workspaces via sshfs
 
 ### Runner
+
 - Remote compute instance controlled by grad
 - Mounts datasets via s3fs
 - Runs sshd for remote access
 - Provides isolated execution environment
 
 ### Workspace Sync
+
 - Frontend process initiated by `gractl workspace sync`
 - Uses sshfs to mount runner workspace
 - Mounted under `workspace/runners/<runner-name>/`
@@ -85,6 +88,7 @@
 ## Workspace Structure
 
 ### Local User Workspace
+
 ```
 workspace/
 ├── config.yaml              # Workspace configuration
@@ -101,6 +105,7 @@ workspace/
 ```
 
 ### Remote Runner Workspace
+
 ```
 /workspace/                  # Runner workspace root
 ├── code/                    # User code files
@@ -113,11 +118,13 @@ workspace/
 ## Development Environment
 
 ### Minikube Configuration
+
 - **Resources**: 4 CPUs, 16GB RAM
 - **Purpose**: Local Kubernetes cluster for development and testing
 - **Components**: Hosts both grad service and runner pods
 
 ### Setup Requirements
+
 ```bash
 # Quick start with Makefile (recommended)
 make dev
@@ -129,6 +136,7 @@ skaffold dev -p development --port-forward
 ```
 
 ### Deployment Architecture
+
 - **grad service**: Deployed via Skaffold using Kubernetes deployment manifests
 - **Runners**: Dynamically created by grad as individual Kubernetes pods (not managed by Skaffold)
 - **Development Workflow**: Skaffold provides continuous development with file watching for grad service
@@ -136,12 +144,14 @@ skaffold dev -p development --port-forward
 - **External Access**: grad service exposed via NodePort with Skaffold port-forwarding
 
 ### Development Tools
+
 - **Skaffold**: Continuous development workflow with automatic build/deploy for grad service
 - **File Sync**: Hot-reload Go code changes without full rebuild
 - **Port Forwarding**: Direct access to grad service during development
 - **Profiles**: Different configurations for development, debug, and production
 
 ### Runner Management
+
 - **Dynamic Creation**: grad service creates runner pods on-demand via Kubernetes API
 - **Pre-built Images**: Runner container images are pre-built and available in registry
 - **Lifecycle Management**: grad manages runner creation, execution, and cleanup

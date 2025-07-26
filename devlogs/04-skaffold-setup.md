@@ -224,6 +224,7 @@ kubectl cluster-info
 ### Development Workflow
 
 #### Using Makefile (Recommended)
+
 ```bash
 # Start complete development environment
 make dev
@@ -239,6 +240,7 @@ make minikube-status
 ```
 
 #### Manual Steps
+
 1. **Start minikube**: `minikube start --cpus=4 --memory=16384`
 2. **Set Docker context**: `eval $(minikube docker-env)`
 3. **Start Skaffold dev**: `skaffold dev -p development`
