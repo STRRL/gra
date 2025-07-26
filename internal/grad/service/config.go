@@ -31,6 +31,11 @@ func loadKubernetesConfig() *KubernetesConfig {
 		config.RunnerImage = runnerImage
 	}
 
+	// Override S3FS sidecar image if provided (handles skaffold dynamic tags)
+	if s3fsImage := os.Getenv("S3FS_IMAGE"); s3fsImage != "" {
+		config.S3FSImage = s3fsImage
+	}
+
 	if sshPortStr := os.Getenv("SSH_PORT"); sshPortStr != "" {
 		if port, err := strconv.ParseInt(sshPortStr, 10, 32); err == nil {
 			config.SSHPort = int32(port)

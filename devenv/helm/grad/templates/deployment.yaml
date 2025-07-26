@@ -34,6 +34,8 @@ spec:
           value: "{{ .Values.grad.env.LOG_LEVEL }}"
         - name: RUNNER_IMAGE
           value: "{{ .Values.grad.runner.image.repository }}:{{ .Values.grad.runner.image.tag }}"
+        - name: S3FS_IMAGE
+          value: "{{ .Values.grad.s3fs.image.repository }}:{{ .Values.grad.s3fs.image.tag }}"
         resources:
           {{- toYaml .Values.grad.resources | nindent 10 }}
         livenessProbe:

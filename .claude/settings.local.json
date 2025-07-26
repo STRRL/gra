@@ -28,7 +28,9 @@
       "Bash(buf generate:*)",
       "WebFetch(domain:codelabs.developers.google.com)",
       "WebFetch(domain:cloud.google.com)",
-      "Bash(skaffold diagnose:*)"
+      "Bash(skaffold diagnose:*)",
+      "WebFetch(domain:kubernetes.io)",
+      "WebFetch(domain:duckdb.org)"
     ],
     "deny": []
   }

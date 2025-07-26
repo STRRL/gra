@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"time"
 
@@ -20,6 +21,10 @@ const (
 	// In dev mode, skaffold uses dynamic tags (e.g., :v1.17.1-38-g1c6517887)
 	// Use RUNNER_IMAGE environment variable to override with actual dynamic tag
 	DefaultRunnerImage = "ghcr.io/strrl/grad-runner:latest"
+	
+	// Default S3FS sidecar image built by skaffold
+	// Use S3FS_IMAGE environment variable to override with actual dynamic tag
+	DefaultS3FSImage = "ghcr.io/strrl/grad-runner-s3fs:latest"
 
 	// Kubernetes annotations and labels for runner management
 	RunnerAnnotationPrefix = "grad.io/"
@@ -99,6 +104,7 @@ func GetEffectiveRunnerImage() string {
 type KubernetesConfig struct {
 	Namespace      string
 	RunnerImage    string
+	S3FSImage      string
 	DefaultCPU     string
 	DefaultMemory  string
 	DefaultStorage string
@@ -111,6 +117,8 @@ func DefaultKubernetesConfig() *KubernetesConfig {
 		Namespace: "default",
 		// Default runner image - can be overridden by RUNNER_IMAGE env var for skaffold dynamic tags
 		RunnerImage: DefaultRunnerImage,
+		// Default S3FS sidecar image - can be overridden by S3FS_IMAGE env var for skaffold dynamic tags
+		S3FSImage:   DefaultS3FSImage,
 		// Small preset configuration
 		DefaultCPU:     RunnerSpecPreset.Small.CPU,
 		DefaultMemory:  RunnerSpecPreset.Small.Memory,
@@ -220,30 +228,44 @@ func (k *KubernetesClient) getPodName(runnerID string) string {
 
 // ExecuteCommandStream executes a command in a runner pod with streaming output
 func (k *KubernetesClient) ExecuteCommandStream(ctx context.Context, runnerID, command string, stdoutCh, stderrCh chan<- []byte) (int32, error) {
+	slog.Info("ExecuteCommandStream called",
+		"runnerID", runnerID,
+		"command", command)
+
 	// For this demo, we'll execute the command locally since we don't have real K8s runners yet
 	// In production, this would use kubectl exec with streaming to the actual pod
-
 	cmd := exec.CommandContext(ctx, "bash", "-c", command)
+
+	slog.Info("Created command", "cmd", cmd.String())
 
 	// Create pipes for stdout and stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		slog.Error("Failed to create stdout pipe", "error", err)
 		return 1, fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		slog.Error("Failed to create stderr pipe", "error", err)
 		return 1, fmt.Errorf("failed to create stderr pipe: %w", err)
 	}
 
 	// Start the command
+	slog.Info("Starting command execution")
 	if err := cmd.Start(); err != nil {
+		slog.Error("Failed to start command", "error", err)
 		return 1, fmt.Errorf("failed to start command: %w", err)
 	}
 
+	slog.Info("Command started successfully, setting up streaming")
+
 	// Stream stdout in a goroutine
 	go func() {
-		defer close(stdoutCh)
+		defer func() {
+			slog.Info("Closing stdout channel")
+			close(stdoutCh)
+		}()
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			line := scanner.Bytes()
@@ -255,16 +277,24 @@ func (k *KubernetesClient) ExecuteCommandStream(ctx context.Context, runnerID, c
 
 				select {
 				case <-ctx.Done():
+					slog.Info("Context cancelled, stopping stdout streaming")
 					return
 				case stdoutCh <- lineCopy:
+					slog.Debug("Sent stdout line", "line", string(lineCopy))
 				}
 			}
+		}
+		if err := scanner.Err(); err != nil {
+			slog.Error("Error reading stdout", "error", err)
 		}
 	}()
 
 	// Stream stderr in a goroutine
 	go func() {
-		defer close(stderrCh)
+		defer func() {
+			slog.Info("Closing stderr channel")
+			close(stderrCh)
+		}()
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			line := scanner.Bytes()
@@ -276,22 +306,31 @@ func (k *KubernetesClient) ExecuteCommandStream(ctx context.Context, runnerID, c
 
 				select {
 				case <-ctx.Done():
+					slog.Info("Context cancelled, stopping stderr streaming")
 					return
 				case stderrCh <- lineCopy:
+					slog.Debug("Sent stderr line", "line", string(lineCopy))
 				}
 			}
+		}
+		if err := scanner.Err(); err != nil {
+			slog.Error("Error reading stderr", "error", err)
 		}
 	}()
 
 	// Wait for command to complete
+	slog.Info("Waiting for command to complete")
 	err = cmd.Wait()
 	if err != nil {
+		slog.Error("Command execution failed", "error", err)
 		if exitError, ok := err.(*exec.ExitError); ok {
+			slog.Info("Command exited with non-zero code", "exit_code", exitError.ExitCode())
 			return int32(exitError.ExitCode()), nil
 		}
 		return 1, err
 	}
 
+	slog.Info("Command completed successfully")
 	return 0, nil
 }
 

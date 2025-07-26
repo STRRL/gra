@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	gradv1 "github.com/strrl/gra/gen/grad/v1"
 	"github.com/strrl/gra/internal/grad/service"
@@ -251,11 +252,14 @@ func (s *Server) mapServiceError(err error) error {
 	case errors.Is(err, service.ErrResourceConflict):
 		return status.Errorf(codes.AlreadyExists, "resource conflict")
 	case errors.Is(err, service.ErrKubernetesAPI):
-		return status.Errorf(codes.Internal, "kubernetes API error")
+		slog.Error("Kubernetes API error", "error", err)
+		return status.Errorf(codes.Internal, "kubernetes API error: %v", err)
 	case errors.Is(err, service.ErrCommandExecution):
-		return status.Errorf(codes.Internal, "command execution failed")
+		slog.Error("Command execution error", "error", err)
+		return status.Errorf(codes.Internal, "command execution failed: %v", err)
 	default:
-		// Log the error for debugging in production
-		return status.Errorf(codes.Internal, "internal server error")
+		// Log unknown errors for debugging
+		slog.Error("Unknown service error", "error", err)
+		return status.Errorf(codes.Internal, "internal server error: %v", err)
 	}
 }

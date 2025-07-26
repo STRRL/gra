@@ -86,7 +86,7 @@ func init() {
 
 func runServers() {
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3) // HTTP server, gRPC server, and cleanup service
 
 	// Initialize structured logger
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -110,8 +110,14 @@ func runServers() {
 		log.Fatalf("Failed to create Kubernetes client: %v", err)
 	}
 
+	// Initialize activity tracker for runner cleanup
+	activityTracker := service.NewActivityTracker()
+
 	// Initialize runner service
-	runnerService := service.NewRunnerService(k8sClient)
+	runnerService := service.NewRunnerService(k8sClient, activityTracker)
+
+	// Initialize cleanup service for inactive runners
+	cleanupService := service.NewCleanupService(runnerService, activityTracker)
 
 	// Create gRPC server with service dependency
 	grpcSrv := grpcserver.NewServer(runnerService)
@@ -128,6 +134,13 @@ func runServers() {
 		runGRPCServer(grpcSrv)
 	}()
 
+	// Start cleanup service
+	ctx, cancelCleanup := context.WithCancel(context.Background())
+	go func() {
+		defer wg.Done()
+		cleanupService.Start(ctx)
+	}()
+
 	// Wait for interrupt signal
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -135,12 +148,16 @@ func runServers() {
 
 	slog.Info("Shutting down grad services...")
 
+	// Stop cleanup service first
+	cancelCleanup()
+	cleanupService.Stop()
+
 	// Graceful shutdown context
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	// Shutdown both servers (we'll add this logic)
-	shutdownServers(ctx)
+	shutdownServers(shutdownCtx)
 
 	slog.Info("grad services stopped")
 }

@@ -8,6 +8,11 @@ grad:
     image:
       repository: ghcr.io/strrl/grad-runner
       tag: latest
+  
+  s3fs:
+    image:
+      repository: ghcr.io/strrl/grad-runner-s3fs
+      tag: latest
 
   service:
     type: ClusterIP

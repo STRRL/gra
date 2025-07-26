@@ -16,7 +16,8 @@ func TestRunnerServiceBasics(t *testing.T) {
 		t.Skipf("Skipping test - cannot create Kubernetes client: %v", err)
 	}
 
-	service := NewRunnerService(k8sClient)
+	activityTracker := NewActivityTracker()
+	service := NewRunnerService(k8sClient, activityTracker)
 	ctx := context.Background()
 
 	// Test creating a runner

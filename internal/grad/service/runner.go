@@ -10,13 +10,15 @@ import (
 
 // runnerService implements the RunnerService interface using Kubernetes API
 type runnerService struct {
-	k8sClient *KubernetesClient
+	k8sClient       *KubernetesClient
+	activityTracker *ActivityTracker
 }
 
 // NewRunnerService creates a new runner service
-func NewRunnerService(k8sClient *KubernetesClient) RunnerService {
+func NewRunnerService(k8sClient *KubernetesClient, activityTracker *ActivityTracker) RunnerService {
 	return &runnerService{
-		k8sClient: k8sClient,
+		k8sClient:       k8sClient,
+		activityTracker: activityTracker,
 	}
 }
 
@@ -92,6 +94,9 @@ func (s *runnerService) DeleteRunner(ctx context.Context, runnerID string) error
 			return fmt.Errorf("%w: %v", ErrKubernetesAPI, err)
 		}
 	}
+
+	// Remove runner from activity tracking
+	s.activityTracker.RemoveRunner(runnerID)
 
 	return nil
 }
@@ -170,6 +175,9 @@ func (s *runnerService) ExecuteCommandStream(ctx context.Context, req *ExecuteCo
 	if runner.Status != RunnerStatusRunning {
 		return 1, ErrRunnerNotRunning
 	}
+
+	// Record the last active time when command execution starts
+	s.activityTracker.UpdateLastActiveTime(req.RunnerID)
 
 	// Execute command via Kubernetes client with streaming
 	exitCode, err := s.k8sClient.ExecuteCommandStream(ctx, req.RunnerID, req.Command, stdoutCh, stderrCh)
