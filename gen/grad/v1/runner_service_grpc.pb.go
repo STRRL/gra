@@ -19,11 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	RunnerService_CreateRunner_FullMethodName = "/grad.v1.RunnerService/CreateRunner"
-	RunnerService_DeleteRunner_FullMethodName = "/grad.v1.RunnerService/DeleteRunner"
-	RunnerService_ListRunners_FullMethodName  = "/grad.v1.RunnerService/ListRunners"
-	RunnerService_ExecuteCode_FullMethodName  = "/grad.v1.RunnerService/ExecuteCode"
-	RunnerService_GetRunner_FullMethodName    = "/grad.v1.RunnerService/GetRunner"
+	RunnerService_CreateRunner_FullMethodName   = "/grad.v1.RunnerService/CreateRunner"
+	RunnerService_DeleteRunner_FullMethodName   = "/grad.v1.RunnerService/DeleteRunner"
+	RunnerService_ListRunners_FullMethodName    = "/grad.v1.RunnerService/ListRunners"
+	RunnerService_ExecuteCommand_FullMethodName = "/grad.v1.RunnerService/ExecuteCommand"
+	RunnerService_GetRunner_FullMethodName      = "/grad.v1.RunnerService/GetRunner"
 )
 
 // RunnerServiceClient is the client API for RunnerService service.
@@ -38,8 +38,8 @@ type RunnerServiceClient interface {
 	DeleteRunner(ctx context.Context, in *DeleteRunnerRequest, opts ...grpc.CallOption) (*DeleteRunnerResponse, error)
 	// ListRunners returns all available runners
 	ListRunners(ctx context.Context, in *ListRunnersRequest, opts ...grpc.CallOption) (*ListRunnersResponse, error)
-	// ExecuteCode executes code in a specific runner
-	ExecuteCode(ctx context.Context, in *ExecuteCodeRequest, opts ...grpc.CallOption) (*ExecuteCodeResponse, error)
+	// ExecuteCommand executes a command in a specific runner
+	ExecuteCommand(ctx context.Context, in *ExecuteCommandRequest, opts ...grpc.CallOption) (*ExecuteCommandResponse, error)
 	// GetRunner returns details about a specific runner
 	GetRunner(ctx context.Context, in *GetRunnerRequest, opts ...grpc.CallOption) (*GetRunnerResponse, error)
 }
@@ -82,10 +82,10 @@ func (c *runnerServiceClient) ListRunners(ctx context.Context, in *ListRunnersRe
 	return out, nil
 }
 
-func (c *runnerServiceClient) ExecuteCode(ctx context.Context, in *ExecuteCodeRequest, opts ...grpc.CallOption) (*ExecuteCodeResponse, error) {
+func (c *runnerServiceClient) ExecuteCommand(ctx context.Context, in *ExecuteCommandRequest, opts ...grpc.CallOption) (*ExecuteCommandResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ExecuteCodeResponse)
-	err := c.cc.Invoke(ctx, RunnerService_ExecuteCode_FullMethodName, in, out, cOpts...)
+	out := new(ExecuteCommandResponse)
+	err := c.cc.Invoke(ctx, RunnerService_ExecuteCommand_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -114,8 +114,8 @@ type RunnerServiceServer interface {
 	DeleteRunner(context.Context, *DeleteRunnerRequest) (*DeleteRunnerResponse, error)
 	// ListRunners returns all available runners
 	ListRunners(context.Context, *ListRunnersRequest) (*ListRunnersResponse, error)
-	// ExecuteCode executes code in a specific runner
-	ExecuteCode(context.Context, *ExecuteCodeRequest) (*ExecuteCodeResponse, error)
+	// ExecuteCommand executes a command in a specific runner
+	ExecuteCommand(context.Context, *ExecuteCommandRequest) (*ExecuteCommandResponse, error)
 	// GetRunner returns details about a specific runner
 	GetRunner(context.Context, *GetRunnerRequest) (*GetRunnerResponse, error)
 	mustEmbedUnimplementedRunnerServiceServer()
@@ -137,8 +137,8 @@ func (UnimplementedRunnerServiceServer) DeleteRunner(context.Context, *DeleteRun
 func (UnimplementedRunnerServiceServer) ListRunners(context.Context, *ListRunnersRequest) (*ListRunnersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListRunners not implemented")
 }
-func (UnimplementedRunnerServiceServer) ExecuteCode(context.Context, *ExecuteCodeRequest) (*ExecuteCodeResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ExecuteCode not implemented")
+func (UnimplementedRunnerServiceServer) ExecuteCommand(context.Context, *ExecuteCommandRequest) (*ExecuteCommandResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ExecuteCommand not implemented")
 }
 func (UnimplementedRunnerServiceServer) GetRunner(context.Context, *GetRunnerRequest) (*GetRunnerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetRunner not implemented")
@@ -218,20 +218,20 @@ func _RunnerService_ListRunners_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RunnerService_ExecuteCode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ExecuteCodeRequest)
+func _RunnerService_ExecuteCommand_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExecuteCommandRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RunnerServiceServer).ExecuteCode(ctx, in)
+		return srv.(RunnerServiceServer).ExecuteCommand(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: RunnerService_ExecuteCode_FullMethodName,
+		FullMethod: RunnerService_ExecuteCommand_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RunnerServiceServer).ExecuteCode(ctx, req.(*ExecuteCodeRequest))
+		return srv.(RunnerServiceServer).ExecuteCommand(ctx, req.(*ExecuteCommandRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -274,8 +274,8 @@ var RunnerService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _RunnerService_ListRunners_Handler,
 		},
 		{
-			MethodName: "ExecuteCode",
-			Handler:    _RunnerService_ExecuteCode_Handler,
+			MethodName: "ExecuteCommand",
+			Handler:    _RunnerService_ExecuteCommand_Handler,
 		},
 		{
 			MethodName: "GetRunner",

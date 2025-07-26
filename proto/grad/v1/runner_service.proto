@@ -15,8 +15,8 @@ service RunnerService {
   // ListRunners returns all available runners
   rpc ListRunners(ListRunnersRequest) returns (ListRunnersResponse);
   
-  // ExecuteCode executes code in a specific runner
-  rpc ExecuteCode(ExecuteCodeRequest) returns (ExecuteCodeResponse);
+  // ExecuteCommand executes a command in a specific runner
+  rpc ExecuteCommand(ExecuteCommandRequest) returns (ExecuteCommandResponse);
   
   // GetRunner returns details about a specific runner
   rpc GetRunner(GetRunnerRequest) returns (GetRunnerResponse);
@@ -70,16 +70,16 @@ message ListRunnersResponse {
   int32 total = 2;
 }
 
-// ExecuteCodeRequest defines the request to execute code
-message ExecuteCodeRequest {
+// ExecuteCommandRequest defines the request to execute a command
+message ExecuteCommandRequest {
   // ID of the runner to execute code in
   string runner_id = 1;
   
-  // Code to execute
-  string code = 2;
+  // Command to execute
+  string command = 2;
   
-  // Language/runtime for the code
-  string language = 3;
+  // Shell to use for the command (e.g., bash, sh, python)
+  string shell = 3;
   
   // Timeout for execution (in seconds)
   int32 timeout = 4;
@@ -88,8 +88,8 @@ message ExecuteCodeRequest {
   string working_dir = 5;
 }
 
-// ExecuteCodeResponse defines the response after code execution
-message ExecuteCodeResponse {
+// ExecuteCommandResponse defines the response after command execution
+message ExecuteCommandResponse {
   // Execution output (stdout)
   string output = 1;
   

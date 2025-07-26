@@ -13,7 +13,7 @@ var (
 	ErrRunnerNotRunning = errors.New("runner is not running")
 	ErrInvalidRequest   = errors.New("invalid request")
 	ErrKubernetesAPI    = errors.New("kubernetes API error")
-	ErrCodeExecution    = errors.New("code execution failed")
+	ErrCommandExecution = errors.New("command execution failed")
 	ErrResourceConflict = errors.New("resource conflict")
 )
 
@@ -64,17 +64,17 @@ type SSHDetails struct {
 	PublicKey string
 }
 
-// ExecuteCodeRequest represents a code execution request
-type ExecuteCodeRequest struct {
+// ExecuteCommandRequest represents a command execution request
+type ExecuteCommandRequest struct {
 	RunnerID   string
-	Code       string
-	Language   string
+	Command    string
+	Shell      string
 	Timeout    int32
 	WorkingDir string
 }
 
-// ExecuteCodeResult represents the result of code execution
-type ExecuteCodeResult struct {
+// ExecuteCommandResult represents the result of command execution
+type ExecuteCommandResult struct {
 	Output     string
 	Error      string
 	ExitCode   int32
@@ -94,7 +94,7 @@ type RunnerService interface {
 	DeleteRunner(ctx context.Context, runnerID string) error
 	ListRunners(ctx context.Context, opts *ListOptions) ([]*Runner, int32, error)
 	GetRunner(ctx context.Context, runnerID string) (*Runner, error)
-	ExecuteCode(ctx context.Context, req *ExecuteCodeRequest) (*ExecuteCodeResult, error)
+	ExecuteCommand(ctx context.Context, req *ExecuteCommandRequest) (*ExecuteCommandResult, error)
 }
 
 // Conversion functions between domain and proto types
@@ -160,20 +160,20 @@ func FromProtoResourceRequirements(rr *gradv1.ResourceRequirements) *ResourceReq
 	}
 }
 
-// FromProtoExecuteCodeRequest converts proto request to domain request
-func FromProtoExecuteCodeRequest(req *gradv1.ExecuteCodeRequest) *ExecuteCodeRequest {
-	return &ExecuteCodeRequest{
+// FromProtoExecuteCommandRequest converts proto request to domain request
+func FromProtoExecuteCommandRequest(req *gradv1.ExecuteCommandRequest) *ExecuteCommandRequest {
+	return &ExecuteCommandRequest{
 		RunnerID:   req.RunnerId,
-		Code:       req.Code,
-		Language:   req.Language,
+		Command:    req.Command,
+		Shell:      req.Shell,
 		Timeout:    req.Timeout,
 		WorkingDir: req.WorkingDir,
 	}
 }
 
-// ToProtoExecuteCodeResponse converts domain result to proto response
-func (ecr *ExecuteCodeResult) ToProto() *gradv1.ExecuteCodeResponse {
-	return &gradv1.ExecuteCodeResponse{
+// ToProtoExecuteCommandResponse converts domain result to proto response
+func (ecr *ExecuteCommandResult) ToProto() *gradv1.ExecuteCommandResponse {
+	return &gradv1.ExecuteCommandResponse{
 		Output:     ecr.Output,
 		Error:      ecr.Error,
 		ExitCode:   ecr.ExitCode,

@@ -92,18 +92,18 @@ func (s *Server) ListRunners(ctx context.Context, req *gradv1.ListRunnersRequest
 	}, nil
 }
 
-// ExecuteCode executes code in a specific runner
-func (s *Server) ExecuteCode(ctx context.Context, req *gradv1.ExecuteCodeRequest) (*gradv1.ExecuteCodeResponse, error) {
+// ExecuteCommand executes a command in a specific runner
+func (s *Server) ExecuteCommand(ctx context.Context, req *gradv1.ExecuteCommandRequest) (*gradv1.ExecuteCommandResponse, error) {
 	// Validate request
-	if err := s.validateExecuteCodeRequest(req); err != nil {
+	if err := s.validateExecuteCommandRequest(req); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid request: %v", err)
 	}
 
 	// Convert proto request to domain request
-	domainReq := service.FromProtoExecuteCodeRequest(req)
+	domainReq := service.FromProtoExecuteCommandRequest(req)
 
 	// Call service layer
-	result, err := s.runnerService.ExecuteCode(ctx, domainReq)
+	result, err := s.runnerService.ExecuteCommand(ctx, domainReq)
 	if err != nil {
 		return nil, s.mapServiceError(err)
 	}
@@ -142,14 +142,14 @@ func (s *Server) validateCreateRunnerRequest(req *gradv1.CreateRunnerRequest) er
 	return nil
 }
 
-// validateExecuteCodeRequest validates the execute code request
-func (s *Server) validateExecuteCodeRequest(req *gradv1.ExecuteCodeRequest) error {
+// validateExecuteCommandRequest validates the execute command request
+func (s *Server) validateExecuteCommandRequest(req *gradv1.ExecuteCommandRequest) error {
 	if req.RunnerId == "" {
 		return errors.New("runner_id is required")
 	}
 
-	if req.Code == "" {
-		return errors.New("code is required")
+	if req.Command == "" {
+		return errors.New("command is required")
 	}
 
 	if req.Timeout < 0 {
@@ -177,8 +177,8 @@ func (s *Server) mapServiceError(err error) error {
 		return status.Errorf(codes.AlreadyExists, "resource conflict")
 	case errors.Is(err, service.ErrKubernetesAPI):
 		return status.Errorf(codes.Internal, "kubernetes API error")
-	case errors.Is(err, service.ErrCodeExecution):
-		return status.Errorf(codes.Internal, "code execution failed")
+	case errors.Is(err, service.ErrCommandExecution):
+		return status.Errorf(codes.Internal, "command execution failed")
 	default:
 		// Log the error for debugging in production
 		return status.Errorf(codes.Internal, "internal server error")

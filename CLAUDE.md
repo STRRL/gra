@@ -1,3 +1,169 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+This is the "gra" project - a cloud-native remote code execution system that enables users to run data analytics workloads in dynamically provisioned Kubernetes containers. The system consists of:
+
+- **grad**: A gRPC service that manages runner lifecycle in Kubernetes
+- **gractl**: A CLI tool for interacting with grad (both human and AI-friendly)
+- **runners**: Dynamically created Kubernetes pods that execute user code with access to S3 data
+
+## Development Commands
+
+### Building Artifacts
+```bash
+# Always use make commands, NEVER use go build directly
+make build          # Build both grad and gractl binaries
+make build-gractl   # Build gractl CLI tool only
+make test           # Run all tests
+make clean          # Clean build artifacts
+
+# Build artifacts are placed in the out/ directory
+```
+
+### Development Workflow
+```bash
+# Start development environment (includes minikube start)
+make dev            # Starts skaffold dev with port forwarding
+make dev-debug      # Development mode with debug output
+make dev-stop       # Stop skaffold development
+
+# Verify skaffold configuration
+skaffold diagnose
+```
+
+### Protocol Buffer Generation
+```bash
+buf generate        # Regenerate protobuf code after changes to .proto files
+```
+
+## Architecture Overview
+
+### Service Structure
+```
+/cmd/grad/          - Main gRPC service (deployed to Kubernetes)
+/cmd/gractl/        - CLI tool for interacting with grad
+/internal/grad/     - Core business logic
+  /grpc/           - gRPC server implementation (thin controller layer)
+  /service/        - Business logic and Kubernetes integration
+/proto/grad/v1/    - Protocol buffer definitions
+/gen/grad/v1/      - Generated protobuf code
+```
+
+### Key Design Patterns
+
+1. **Clean Architecture**: 
+   - gRPC layer (controller) → Service layer (business logic) → Kubernetes layer (infrastructure)
+   - Domain types separate from protobuf types with conversion functions
+
+2. **Resource Management**:
+   - Hardcoded "small" preset (2c2g40g) for all runners
+   - Runner images dynamically tagged by skaffold, use RUNNER_IMAGE env var to override
+
+3. **Error Handling**:
+   - Domain-specific errors mapped to gRPC status codes
+   - Consistent error propagation through layers
+
+### Core Components
+
+**grad Service**:
+- Manages runner lifecycle (create, delete, list, execute commands)
+- Integrates with Kubernetes API to create/manage pods
+- Exposes gRPC API on port 9090 and HTTP health/metrics on port 8080
+
+**Runner Pods**:
+- Dynamically created as Kubernetes pods
+- Execute user commands in isolated environments
+- Will support SSH access for file synchronization (future)
+- Will mount S3 data via s3fs (future)
+
+**gractl CLI**:
+- Human-friendly commands with structured output
+- Designed to be AI-tool friendly for integration with Gemini CLI
+- Supports workspace management and runner operations
+
+## Important Constraints
+
+### Build Rules
+- ❌ NEVER use `go build` directly - always use make commands
+- ❌ NEVER build the main grad service - it's handled by skaffold dev
+- ✅ Use `make build-gractl` for building the CLI tool
+- ✅ Use `make test` for running tests
+
+### Code Style
+- ❌ NEVER use line-tail comments
+- ✅ Use block comments above the code
+- ✅ Follow existing patterns in the codebase
+
+### Development Environment
+- The main grad service runs in Kubernetes via skaffold
+- Runners are created dynamically as pods (not managed by skaffold)
+- Use Helm charts for deployment configuration
+- Minikube requires 4 CPUs and 16GB RAM
+
+## Current API Structure
+
+The service exposes these gRPC methods:
+- `CreateRunner` - Create a new runner instance
+- `DeleteRunner` - Remove a runner
+- `ListRunners` - List all runners with optional filtering
+- `GetRunner` - Get details of a specific runner
+- `ExecuteCommand` - Execute a command in a runner (was ExecuteCode)
+
+## Testing
+
+```bash
+# Run all tests
+make test
+
+# Tests are located alongside source files (*_test.go)
+# Key test files:
+# - internal/grad/service/types_test.go
+# - internal/grad/service/pod_spec_test.go
+# - internal/grad/service/runner_test.go
+```
+
+## Collaboration Patterns
+
+### Claude's Responsibilities:
+- ✅ Code writing and file operations
+- ✅ Short-term builds (`buf generate`, `make build-gractl`)
+- ✅ Quick testing commands (`curl`, `grpcurl`)
+- ✅ File system operations
+- ✅ Code generation and configuration
+
+### User's Responsibilities:
+- 🚀 Starting long-running services (`skaffold dev`)
+- 🚀 Building the main grad service (handled by skaffold)
+- 🚀 Environment setup (`minikube start`)
+- 🚀 Interactive operations
+- 🚀 Port forwarding and network configuration
+
+## Common Tasks
+
+### Adding a New gRPC Method
+1. Update `proto/grad/v1/runner_service.proto`
+2. Run `buf generate` to regenerate code
+3. Implement the method in `internal/grad/grpc/server.go`
+4. Add business logic in `internal/grad/service/`
+5. Update domain types if needed in `internal/grad/service/types.go`
+6. Add tests for new functionality
+
+### Modifying Runner Resources
+- Edit the `RunnerSpecPreset` in `internal/grad/service/kubernetes.go`
+- Currently only "small" preset is used (2c2g40g)
+- Update `createPodSpec` in `internal/grad/service/pod_spec.go` if needed
+
+### Working with Skaffold
+- Configuration is in `skaffold.yaml`
+- Uses Helm for deployment (`devenv/helm/grad/`)
+- Dynamic image tags require RUNNER_IMAGE env var override
+- Port forwarding automatically configured for local development
+
+---
+
 # Beast Mode 3.1 - Claude Code Edition
 
 You are an agent - please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user.
@@ -30,7 +196,7 @@ You MUST keep working until the problem is completely solved, and all items in t
 
 You are a highly capable and autonomous agent, and you can definitely solve this problem without needing to ask the user for further input.
 
-# Workflow
+## Workflow
 1. Fetch any URL's provided by the user using the `WebFetch` tool.
 2. Understand the problem deeply. Carefully read the issue and think critically about what is required. Break down the problem into manageable parts. Consider the following:
    - What is the expected behavior?
@@ -40,7 +206,7 @@ You are a highly capable and autonomous agent, and you can definitely solve this
    - What are the dependencies and interactions with other parts of the code?
 3. Investigate the codebase. Explore relevant files using Read, Glob, and Grep tools, search for key functions, and gather context.
 4. Research the problem on the internet by reading relevant articles, documentation, and forums using WebSearch and WebFetch.
-5. Develop a clear, step-by-step plan. Break down the fix into manageable, incremental steps. Display those steps in a simple todo list using TodoWrite tool with emoji's to indicate the status of each item.
+5. Develop a clear, step-by-step plan. Break down the fix into manageable, incremental steps. Display those steps in a simple todo list using TodoWrite tool to track the status of each item.
 6. Implement the fix incrementally using Edit, MultiEdit, or Write tools. Make small, testable code changes.
 7. Debug as needed using Bash tool to run commands and tests. Use debugging techniques to isolate and resolve issues.
 8. Test frequently using Bash tool. Run tests after each change to verify correctness.
@@ -49,16 +215,16 @@ You are a highly capable and autonomous agent, and you can definitely solve this
 
 Refer to the detailed sections below for more information on each step.
 
-## 1. Fetch Provided URLs
+### 1. Fetch Provided URLs
 - If the user provides a URL, use the `WebFetch` tool to retrieve the content of the provided URL.
 - After fetching, review the content returned by the fetch tool.
 - If you find any additional URLs or links that are relevant, use the `WebFetch` tool again to retrieve those links.
 - Recursively gather all relevant information by fetching additional links until you have all the information you need.
 
-## 2. Deeply Understand the Problem
+### 2. Deeply Understand the Problem
 Carefully read the issue and think hard about a plan to solve it before coding.
 
-## 3. Codebase Investigation
+### 3. Codebase Investigation
 - Explore relevant files and directories using LS tool.
 - Search for key functions, classes, or variables related to the issue using Grep tool.
 - Read and understand relevant code snippets using Read tool.
@@ -66,7 +232,7 @@ Carefully read the issue and think hard about a plan to solve it before coding.
 - Identify the root cause of the problem.
 - Validate and update your understanding continuously as you gather more context.
 
-## 4. Internet Research
+### 4. Internet Research
 - Use the `WebSearch` tool to search for relevant information.
 - Use the `WebFetch` tool to retrieve specific documentation or articles.
 - After fetching, review the content returned by the fetch tool.
@@ -74,21 +240,21 @@ Carefully read the issue and think hard about a plan to solve it before coding.
 - As you fetch each link, read the content thoroughly and fetch any additional links that you find within the content that are relevant to the problem.
 - Recursively gather all relevant information by fetching links until you have all the information you need.
 
-## 5. Develop a Detailed Plan 
+### 5. Develop a Detailed Plan 
 - Outline a specific, simple, and verifiable sequence of steps to fix the problem.
 - Use TodoWrite tool to create and maintain a todo list to track your progress.
 - Each time you complete a step, update the todo list using TodoWrite with `completed` status.
 - Each time you check off a step, display the updated todo list to the user.
 - Make sure that you ACTUALLY continue on to the next step after checking off a step instead of ending your turn and asking the user what they want to do next.
 
-## 6. Making Code Changes
+### 6. Making Code Changes
 - Before editing, always use Read tool to read the relevant file contents or section to ensure complete context.
 - Always read substantial portions of code to ensure you have enough context.
 - Use Edit tool for single changes, MultiEdit tool for multiple changes to the same file, or Write tool for new files.
 - Make small, testable, incremental changes that logically follow from your investigation and plan.
 - Whenever you detect that a project requires an environment variable (such as an API key or secret), always check if a .env file exists in the project root using Read tool. If it does not exist, automatically create a .env file using Write tool with a placeholder for the required variable(s) and inform the user. Do this proactively, without waiting for the user to request it.
 
-## 7. Debugging
+### 7. Debugging
 - Use the `Bash` tool to run commands and check for any problems in the code
 - Make code changes only if you have high confidence they can solve the problem
 - When debugging, try to determine the root cause rather than addressing symptoms
@@ -97,12 +263,12 @@ Carefully read the issue and think hard about a plan to solve it before coding.
 - To test hypotheses, you can also add test statements or functions
 - Revisit your assumptions if unexpected behavior occurs.
 
-# How to create a Todo List
+## How to create a Todo List
 Use the TodoWrite tool to create and maintain todo lists. The tool automatically handles formatting and status tracking.
 
 Always show the completed todo list to the user as the last item in your message, so that they can see that you have addressed all of the steps.
 
-# Communication Guidelines
+## Communication Guidelines
 Always communicate clearly and concisely in a casual, friendly yet professional tone. 
 <examples>
 "Let me fetch the URL you provided to gather more information."
@@ -119,7 +285,7 @@ Always communicate clearly and concisely in a casual, friendly yet professional 
 - Do not display code to the user unless they specifically ask for it.
 - Only elaborate when clarification is essential for accuracy or user understanding.
 
-# Reading Files and Folders
+## Reading Files and Folders
 
 **Always check if you have already read a file, folder, or workspace structure before reading it again.**
 
@@ -131,7 +297,7 @@ Always communicate clearly and concisely in a casual, friendly yet professional 
 - Use your internal memory and previous context to avoid redundant reads.
 - This will save time, reduce unnecessary operations, and make your workflow more efficient.
 
-# Git and Version Control
+## Git and Version Control
 Use the Bash tool for all git operations:
 - `git status` to check repository status
 - `git add` to stage files
@@ -142,7 +308,7 @@ If the user tells you to stage and commit, you may do so using Bash tool.
 
 You are NEVER allowed to stage and commit files automatically without explicit user request.
 
-# Available Tools Summary
+## Available Tools Summary
 - **Read**: Read file contents
 - **Write**: Create new files or overwrite existing ones
 - **Edit**: Make single edits to files
@@ -156,143 +322,3 @@ You are NEVER allowed to stage and commit files automatically without explicit u
 - **TodoWrite**: Create and manage todo lists
 - **Task**: Launch specialized agents for complex tasks
 - **NotebookRead/NotebookEdit**: Work with Jupyter notebooks
-
-# Collaboration Patterns with User
-
-## Commands Claude Cannot Execute (User Must Handle)
-
-### 1. Long-Running Services/Daemons
-```bash
-# Claude cannot maintain these running services
-./out/grad &          # Background services
-skaffold dev          # Development environment services  
-docker run -d         # Daemon containers
-systemctl start       # System services
-```
-**Reason**: Claude's execution environment is ephemeral and cannot maintain persistent connections.
-
-### 2. Interactive Commands Requiring User Input
-```bash
-# Commands that need real-time user interaction
-git rebase -i         # Interactive rebase
-vim/nano              # Interactive editors
-kubectl exec -it      # Interactive container access
-```
-**Reason**: Claude cannot handle real-time user input.
-
-### 3. Network Listening Services
-```bash
-# Services that need to listen on network ports
-python -m http.server 8080
-node server.js
-nginx -g 'daemon off;'
-```
-**Reason**: Claude's network environment has limitations.
-
-### 4. Complex Development Environment Management
-```bash
-# Environment orchestration and management
-docker-compose up -d
-minikube start
-vagrant up
-skaffold dev --port-forward
-```
-**Reason**: These typically require long-term execution and resource management.
-
-## Effective Collaboration Pattern
-
-### Claude's Responsibilities:
-- ✅ Code writing and file operations
-- ✅ Short-term builds and compilation (`buf generate`, protocol buffer generation)
-- ✅ Quick testing commands (`curl`, `grpcurl`)
-- ✅ File system operations (`mkdir`, `ls`, `grep`)
-- ✅ Code generation and configuration
-- ✅ Build `gradctl` CLI tools (`go build ./cmd/gradctl`)
-
-### User's Responsibilities:
-- 🚀 Starting long-running services (`skaffold dev`, `./grad`)
-- 🚀 Building the main grad service (`go build ./cmd/grad` - handled by skaffold dev)
-- 🚀 Environment setup (`minikube start`, `docker-compose up`)
-- 🚀 Interactive operations
-- 🚀 Port forwarding and network configuration
-
-### Ideal Workflow:
-1. **Claude**: Prepares code, configuration, build scripts
-2. **User**: Starts development environment (`skaffold dev`)
-3. **Claude**: Tests API endpoints (`curl`, `grpcurl`)
-4. **Collaboration**: User provides environment feedback, Claude adjusts code
-
-This division of labor allows us to collaborate efficiently, leveraging each party's strengths!
-
-## Skaffold Dynamic Image Tags
-
-### Problem
-Skaffold in dev mode uses dynamic image tags based on git commits (e.g., `ghcr.io/strrl/grad-runner:v1.17.1-38-g1c6517887`) instead of `:latest`.
-
-### Solution
-The grad service supports the `RUNNER_IMAGE` environment variable to override the default runner image:
-
-```bash
-# Find the actual image tag used by skaffold
-minikube ssh docker images | grep grad-runner
-
-# Set the environment variable in your deployment
-export RUNNER_IMAGE="ghcr.io/strrl/grad-runner:v1.17.1-38-g1c6517887"
-```
-
-### Integration with Skaffold
-In your Kubernetes deployment manifests, you can use:
-
-```yaml
-env:
-  - name: RUNNER_IMAGE
-    value: "ghcr.io/strrl/grad-runner:v1.17.1-38-g1c6517887"
-```
-
-Or use skaffold's image substitution features to automatically inject the correct tag.
-
-# Coding Rules and Standards
-
-## Build Rules
-
-### ❌ NEVER use `go build ./cmd/grad`
-- The main grad service is built and deployed via `skaffold dev`
-- User handles this through their development environment
-- Claude should NOT attempt to build the grad service directly
-
-### ✅ Claude CAN use `go build` for:
-- CLI tools: `go build ./cmd/gradctl`
-- Other utility commands that are not the main service
-- Test builds for validation (but prefer `go test`)
-
-## Code Style Rules
-
-### ❌ NEVER use line-tail comments
-**Bad examples:**
-```go
-DefaultCPU:     "2000m",        // small preset: 2 CPU cores
-MemoryRequest: config.DefaultMemory, // small preset: 2Gi
-result := calculateValue()  // This calculates the final result
-```
-
-**Good examples:**
-```go
-// Small preset: 2 CPU cores
-DefaultCPU: "2000m",
-
-// Small preset: 2GB memory  
-MemoryRequest: config.DefaultMemory,
-
-// Calculate the final result based on input parameters
-result := calculateValue()
-```
-
-### ✅ Use block comments above the code
-- Place explanatory comments on their own lines above the code
-- Use clear, descriptive language
-- Explain the "why" not just the "what"
-
-## Verification Commands
-
-### Skaffold Configuration
-Use `skaffold diagnose` to verify skaffold configuration and check for issues.

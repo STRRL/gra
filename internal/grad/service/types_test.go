@@ -142,27 +142,27 @@ func TestFromProtoCreateRunnerRequest(t *testing.T) {
 	}
 }
 
-func TestFromProtoExecuteCodeRequest(t *testing.T) {
-	protoReq := &gradv1.ExecuteCodeRequest{
+func TestFromProtoExecuteCommandRequest(t *testing.T) {
+	protoReq := &gradv1.ExecuteCommandRequest{
 		RunnerId:   "runner-123",
-		Code:       "print('hello')",
-		Language:   "python",
+		Command:    "python -c \"print('hello')\"",
+		Shell:      "bash",
 		Timeout:    30,
 		WorkingDir: "/tmp",
 	}
 
-	domainReq := FromProtoExecuteCodeRequest(protoReq)
+	domainReq := FromProtoExecuteCommandRequest(protoReq)
 
 	if domainReq.RunnerID != "runner-123" {
 		t.Errorf("Expected runner ID 'runner-123', got '%s'", domainReq.RunnerID)
 	}
 
-	if domainReq.Code != "print('hello')" {
-		t.Errorf("Expected code 'print('hello')', got '%s'", domainReq.Code)
+	if domainReq.Command != "python -c \"print('hello')\"" {
+		t.Errorf("Expected command 'python -c \"print('hello')\"', got '%s'", domainReq.Command)
 	}
 
-	if domainReq.Language != "python" {
-		t.Errorf("Expected language 'python', got '%s'", domainReq.Language)
+	if domainReq.Shell != "bash" {
+		t.Errorf("Expected shell 'bash', got '%s'", domainReq.Shell)
 	}
 
 	if domainReq.Timeout != 30 {
@@ -174,8 +174,8 @@ func TestFromProtoExecuteCodeRequest(t *testing.T) {
 	}
 }
 
-func TestExecuteCodeResultToProto(t *testing.T) {
-	result := &ExecuteCodeResult{
+func TestExecuteCommandResultToProto(t *testing.T) {
+	result := &ExecuteCommandResult{
 		Output:     "Hello, World!",
 		Error:      "",
 		ExitCode:   0,

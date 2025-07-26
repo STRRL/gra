@@ -174,8 +174,8 @@ func (s *runnerService) GetRunner(ctx context.Context, runnerID string) (*Runner
 	return runner, nil
 }
 
-// ExecuteCode executes code in a specific runner
-func (s *runnerService) ExecuteCode(ctx context.Context, req *ExecuteCodeRequest) (*ExecuteCodeResult, error) {
+// ExecuteCommand executes a command in a specific runner
+func (s *runnerService) ExecuteCommand(ctx context.Context, req *ExecuteCommandRequest) (*ExecuteCommandResult, error) {
 	s.mu.RLock()
 	runner, exists := s.runners[req.RunnerID]
 	s.mu.RUnlock()
@@ -188,10 +188,10 @@ func (s *runnerService) ExecuteCode(ctx context.Context, req *ExecuteCodeRequest
 		return nil, ErrRunnerNotRunning
 	}
 
-	// Execute code via Kubernetes client
-	result, err := s.k8sClient.ExecuteCommand(ctx, req.RunnerID, req.Code)
+	// Execute command via Kubernetes client
+	result, err := s.k8sClient.ExecuteCommand(ctx, req.RunnerID, req.Command)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrCodeExecution, err)
+		return nil, fmt.Errorf("%w: %v", ErrCommandExecution, err)
 	}
 
 	return result, nil

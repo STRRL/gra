@@ -392,15 +392,15 @@ func (x *ListRunnersResponse) GetTotal() int32 {
 	return 0
 }
 
-// ExecuteCodeRequest defines the request to execute code
-type ExecuteCodeRequest struct {
+// ExecuteCommandRequest defines the request to execute a command
+type ExecuteCommandRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// ID of the runner to execute code in
 	RunnerId string `protobuf:"bytes,1,opt,name=runner_id,json=runnerId,proto3" json:"runner_id,omitempty"`
-	// Code to execute
-	Code string `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
-	// Language/runtime for the code
-	Language string `protobuf:"bytes,3,opt,name=language,proto3" json:"language,omitempty"`
+	// Command to execute
+	Command string `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
+	// Shell to use for the command (e.g., bash, sh, python)
+	Shell string `protobuf:"bytes,3,opt,name=shell,proto3" json:"shell,omitempty"`
 	// Timeout for execution (in seconds)
 	Timeout int32 `protobuf:"varint,4,opt,name=timeout,proto3" json:"timeout,omitempty"`
 	// Working directory for execution
@@ -409,20 +409,20 @@ type ExecuteCodeRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ExecuteCodeRequest) Reset() {
-	*x = ExecuteCodeRequest{}
+func (x *ExecuteCommandRequest) Reset() {
+	*x = ExecuteCommandRequest{}
 	mi := &file_grad_v1_runner_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ExecuteCodeRequest) String() string {
+func (x *ExecuteCommandRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ExecuteCodeRequest) ProtoMessage() {}
+func (*ExecuteCommandRequest) ProtoMessage() {}
 
-func (x *ExecuteCodeRequest) ProtoReflect() protoreflect.Message {
+func (x *ExecuteCommandRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_grad_v1_runner_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -434,48 +434,48 @@ func (x *ExecuteCodeRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ExecuteCodeRequest.ProtoReflect.Descriptor instead.
-func (*ExecuteCodeRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExecuteCommandRequest.ProtoReflect.Descriptor instead.
+func (*ExecuteCommandRequest) Descriptor() ([]byte, []int) {
 	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *ExecuteCodeRequest) GetRunnerId() string {
+func (x *ExecuteCommandRequest) GetRunnerId() string {
 	if x != nil {
 		return x.RunnerId
 	}
 	return ""
 }
 
-func (x *ExecuteCodeRequest) GetCode() string {
+func (x *ExecuteCommandRequest) GetCommand() string {
 	if x != nil {
-		return x.Code
+		return x.Command
 	}
 	return ""
 }
 
-func (x *ExecuteCodeRequest) GetLanguage() string {
+func (x *ExecuteCommandRequest) GetShell() string {
 	if x != nil {
-		return x.Language
+		return x.Shell
 	}
 	return ""
 }
 
-func (x *ExecuteCodeRequest) GetTimeout() int32 {
+func (x *ExecuteCommandRequest) GetTimeout() int32 {
 	if x != nil {
 		return x.Timeout
 	}
 	return 0
 }
 
-func (x *ExecuteCodeRequest) GetWorkingDir() string {
+func (x *ExecuteCommandRequest) GetWorkingDir() string {
 	if x != nil {
 		return x.WorkingDir
 	}
 	return ""
 }
 
-// ExecuteCodeResponse defines the response after code execution
-type ExecuteCodeResponse struct {
+// ExecuteCommandResponse defines the response after command execution
+type ExecuteCommandResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Execution output (stdout)
 	Output string `protobuf:"bytes,1,opt,name=output,proto3" json:"output,omitempty"`
@@ -489,20 +489,20 @@ type ExecuteCodeResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ExecuteCodeResponse) Reset() {
-	*x = ExecuteCodeResponse{}
+func (x *ExecuteCommandResponse) Reset() {
+	*x = ExecuteCommandResponse{}
 	mi := &file_grad_v1_runner_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ExecuteCodeResponse) String() string {
+func (x *ExecuteCommandResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ExecuteCodeResponse) ProtoMessage() {}
+func (*ExecuteCommandResponse) ProtoMessage() {}
 
-func (x *ExecuteCodeResponse) ProtoReflect() protoreflect.Message {
+func (x *ExecuteCommandResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_grad_v1_runner_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -514,33 +514,33 @@ func (x *ExecuteCodeResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ExecuteCodeResponse.ProtoReflect.Descriptor instead.
-func (*ExecuteCodeResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExecuteCommandResponse.ProtoReflect.Descriptor instead.
+func (*ExecuteCommandResponse) Descriptor() ([]byte, []int) {
 	return file_grad_v1_runner_service_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *ExecuteCodeResponse) GetOutput() string {
+func (x *ExecuteCommandResponse) GetOutput() string {
 	if x != nil {
 		return x.Output
 	}
 	return ""
 }
 
-func (x *ExecuteCodeResponse) GetError() string {
+func (x *ExecuteCommandResponse) GetError() string {
 	if x != nil {
 		return x.Error
 	}
 	return ""
 }
 
-func (x *ExecuteCodeResponse) GetExitCode() int32 {
+func (x *ExecuteCommandResponse) GetExitCode() int32 {
 	if x != nil {
 		return x.ExitCode
 	}
 	return 0
 }
 
-func (x *ExecuteCodeResponse) GetDurationMs() int64 {
+func (x *ExecuteCommandResponse) GetDurationMs() int64 {
 	if x != nil {
 		return x.DurationMs
 	}
@@ -917,15 +917,15 @@ const file_grad_v1_runner_service_proto_rawDesc = "" +
 	"\x06offset\x18\x03 \x01(\x05R\x06offset\"V\n" +
 	"\x13ListRunnersResponse\x12)\n" +
 	"\arunners\x18\x01 \x03(\v2\x0f.grad.v1.RunnerR\arunners\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x05R\x05total\"\x9c\x01\n" +
-	"\x12ExecuteCodeRequest\x12\x1b\n" +
-	"\trunner_id\x18\x01 \x01(\tR\brunnerId\x12\x12\n" +
-	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1a\n" +
-	"\blanguage\x18\x03 \x01(\tR\blanguage\x12\x18\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\"\x9f\x01\n" +
+	"\x15ExecuteCommandRequest\x12\x1b\n" +
+	"\trunner_id\x18\x01 \x01(\tR\brunnerId\x12\x18\n" +
+	"\acommand\x18\x02 \x01(\tR\acommand\x12\x14\n" +
+	"\x05shell\x18\x03 \x01(\tR\x05shell\x12\x18\n" +
 	"\atimeout\x18\x04 \x01(\x05R\atimeout\x12\x1f\n" +
 	"\vworking_dir\x18\x05 \x01(\tR\n" +
-	"workingDir\"\x81\x01\n" +
-	"\x13ExecuteCodeResponse\x12\x16\n" +
+	"workingDir\"\x84\x01\n" +
+	"\x16ExecuteCommandResponse\x12\x16\n" +
 	"\x06output\x18\x01 \x01(\tR\x06output\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error\x12\x1b\n" +
 	"\texit_code\x18\x03 \x01(\x05R\bexitCode\x12\x1f\n" +
@@ -969,12 +969,12 @@ const file_grad_v1_runner_service_proto_rawDesc = "" +
 	"\x15RUNNER_STATUS_RUNNING\x10\x02\x12\x1a\n" +
 	"\x16RUNNER_STATUS_STOPPING\x10\x03\x12\x19\n" +
 	"\x15RUNNER_STATUS_STOPPED\x10\x04\x12\x17\n" +
-	"\x13RUNNER_STATUS_ERROR\x10\x052\x81\x03\n" +
+	"\x13RUNNER_STATUS_ERROR\x10\x052\x8a\x03\n" +
 	"\rRunnerService\x12K\n" +
 	"\fCreateRunner\x12\x1c.grad.v1.CreateRunnerRequest\x1a\x1d.grad.v1.CreateRunnerResponse\x12K\n" +
 	"\fDeleteRunner\x12\x1c.grad.v1.DeleteRunnerRequest\x1a\x1d.grad.v1.DeleteRunnerResponse\x12H\n" +
-	"\vListRunners\x12\x1b.grad.v1.ListRunnersRequest\x1a\x1c.grad.v1.ListRunnersResponse\x12H\n" +
-	"\vExecuteCode\x12\x1b.grad.v1.ExecuteCodeRequest\x1a\x1c.grad.v1.ExecuteCodeResponse\x12B\n" +
+	"\vListRunners\x12\x1b.grad.v1.ListRunnersRequest\x1a\x1c.grad.v1.ListRunnersResponse\x12Q\n" +
+	"\x0eExecuteCommand\x12\x1e.grad.v1.ExecuteCommandRequest\x1a\x1f.grad.v1.ExecuteCommandResponse\x12B\n" +
 	"\tGetRunner\x12\x19.grad.v1.GetRunnerRequest\x1a\x1a.grad.v1.GetRunnerResponseB\x87\x01\n" +
 	"\vcom.grad.v1B\x12RunnerServiceProtoP\x01Z'github.com/strrl/gra/gen/grad/v1;gradv1\xa2\x02\x03GXX\xaa\x02\aGrad.V1\xca\x02\aGrad\\V1\xe2\x02\x13Grad\\V1\\GPBMetadata\xea\x02\bGrad::V1b\x06proto3"
 
@@ -993,22 +993,22 @@ func file_grad_v1_runner_service_proto_rawDescGZIP() []byte {
 var file_grad_v1_runner_service_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_grad_v1_runner_service_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_grad_v1_runner_service_proto_goTypes = []any{
-	(RunnerStatus)(0),            // 0: grad.v1.RunnerStatus
-	(*CreateRunnerRequest)(nil),  // 1: grad.v1.CreateRunnerRequest
-	(*CreateRunnerResponse)(nil), // 2: grad.v1.CreateRunnerResponse
-	(*DeleteRunnerRequest)(nil),  // 3: grad.v1.DeleteRunnerRequest
-	(*DeleteRunnerResponse)(nil), // 4: grad.v1.DeleteRunnerResponse
-	(*ListRunnersRequest)(nil),   // 5: grad.v1.ListRunnersRequest
-	(*ListRunnersResponse)(nil),  // 6: grad.v1.ListRunnersResponse
-	(*ExecuteCodeRequest)(nil),   // 7: grad.v1.ExecuteCodeRequest
-	(*ExecuteCodeResponse)(nil),  // 8: grad.v1.ExecuteCodeResponse
-	(*GetRunnerRequest)(nil),     // 9: grad.v1.GetRunnerRequest
-	(*GetRunnerResponse)(nil),    // 10: grad.v1.GetRunnerResponse
-	(*Runner)(nil),               // 11: grad.v1.Runner
-	(*ResourceRequirements)(nil), // 12: grad.v1.ResourceRequirements
-	(*SSHDetails)(nil),           // 13: grad.v1.SSHDetails
-	nil,                          // 14: grad.v1.CreateRunnerRequest.EnvEntry
-	nil,                          // 15: grad.v1.Runner.EnvEntry
+	(RunnerStatus)(0),              // 0: grad.v1.RunnerStatus
+	(*CreateRunnerRequest)(nil),    // 1: grad.v1.CreateRunnerRequest
+	(*CreateRunnerResponse)(nil),   // 2: grad.v1.CreateRunnerResponse
+	(*DeleteRunnerRequest)(nil),    // 3: grad.v1.DeleteRunnerRequest
+	(*DeleteRunnerResponse)(nil),   // 4: grad.v1.DeleteRunnerResponse
+	(*ListRunnersRequest)(nil),     // 5: grad.v1.ListRunnersRequest
+	(*ListRunnersResponse)(nil),    // 6: grad.v1.ListRunnersResponse
+	(*ExecuteCommandRequest)(nil),  // 7: grad.v1.ExecuteCommandRequest
+	(*ExecuteCommandResponse)(nil), // 8: grad.v1.ExecuteCommandResponse
+	(*GetRunnerRequest)(nil),       // 9: grad.v1.GetRunnerRequest
+	(*GetRunnerResponse)(nil),      // 10: grad.v1.GetRunnerResponse
+	(*Runner)(nil),                 // 11: grad.v1.Runner
+	(*ResourceRequirements)(nil),   // 12: grad.v1.ResourceRequirements
+	(*SSHDetails)(nil),             // 13: grad.v1.SSHDetails
+	nil,                            // 14: grad.v1.CreateRunnerRequest.EnvEntry
+	nil,                            // 15: grad.v1.Runner.EnvEntry
 }
 var file_grad_v1_runner_service_proto_depIdxs = []int32{
 	14, // 0: grad.v1.CreateRunnerRequest.env:type_name -> grad.v1.CreateRunnerRequest.EnvEntry
@@ -1023,12 +1023,12 @@ var file_grad_v1_runner_service_proto_depIdxs = []int32{
 	1,  // 9: grad.v1.RunnerService.CreateRunner:input_type -> grad.v1.CreateRunnerRequest
 	3,  // 10: grad.v1.RunnerService.DeleteRunner:input_type -> grad.v1.DeleteRunnerRequest
 	5,  // 11: grad.v1.RunnerService.ListRunners:input_type -> grad.v1.ListRunnersRequest
-	7,  // 12: grad.v1.RunnerService.ExecuteCode:input_type -> grad.v1.ExecuteCodeRequest
+	7,  // 12: grad.v1.RunnerService.ExecuteCommand:input_type -> grad.v1.ExecuteCommandRequest
 	9,  // 13: grad.v1.RunnerService.GetRunner:input_type -> grad.v1.GetRunnerRequest
 	2,  // 14: grad.v1.RunnerService.CreateRunner:output_type -> grad.v1.CreateRunnerResponse
 	4,  // 15: grad.v1.RunnerService.DeleteRunner:output_type -> grad.v1.DeleteRunnerResponse
 	6,  // 16: grad.v1.RunnerService.ListRunners:output_type -> grad.v1.ListRunnersResponse
-	8,  // 17: grad.v1.RunnerService.ExecuteCode:output_type -> grad.v1.ExecuteCodeResponse
+	8,  // 17: grad.v1.RunnerService.ExecuteCommand:output_type -> grad.v1.ExecuteCommandResponse
 	10, // 18: grad.v1.RunnerService.GetRunner:output_type -> grad.v1.GetRunnerResponse
 	14, // [14:19] is the sub-list for method output_type
 	9,  // [9:14] is the sub-list for method input_type

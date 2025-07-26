@@ -199,7 +199,7 @@ func (k *KubernetesClient) getPodName(runnerID string) string {
 }
 
 // ExecuteCommand executes a command in a runner pod
-func (k *KubernetesClient) ExecuteCommand(ctx context.Context, runnerID, command string) (*ExecuteCodeResult, error) {
+func (k *KubernetesClient) ExecuteCommand(ctx context.Context, runnerID, command string) (*ExecuteCommandResult, error) {
 	// For now, we'll return a simulated result
 	// In a real implementation, this would use kubectl exec or SSH
 	startTime := time.Now()
@@ -209,7 +209,7 @@ func (k *KubernetesClient) ExecuteCommand(ctx context.Context, runnerID, command
 
 	executionTime := time.Since(startTime)
 
-	return &ExecuteCodeResult{
+	return &ExecuteCommandResult{
 		Output:     fmt.Sprintf("Executed command in runner %s: %s", runnerID, command),
 		Error:      "",
 		ExitCode:   0,
