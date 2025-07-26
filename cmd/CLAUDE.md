@@ -85,13 +85,14 @@ go build ./cmd/gractl
 
 ```
 gractl
-└── runners (main command group)
-    ├── create
-    ├── delete  
-    ├── list
-    ├── get
-    ├── exec
-    └── workspace-sync (NEW: mount remote workspace locally)
+├── runners (main command group)
+│   ├── create
+│   ├── delete  
+│   ├── list
+│   ├── get
+│   └── exec
+├── execute
+└── workspace-sync (NEW: mount remote workspace(s) locally)
 ```
 
 **Client Architecture**:

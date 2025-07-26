@@ -16,9 +16,16 @@ fi
 
 # Setup SSH authorized keys if PUBLIC_KEY is provided
 if [ -n "$PUBLIC_KEY" ]; then
+    # Setup for runner user
     echo "$PUBLIC_KEY" > /home/runner/.ssh/authorized_keys
     chown runner:runner /home/runner/.ssh/authorized_keys
     chmod 600 /home/runner/.ssh/authorized_keys
+    
+    # Setup for root user as well (needed for sshfs workspace sync)
+    mkdir -p /root/.ssh
+    echo "$PUBLIC_KEY" > /root/.ssh/authorized_keys
+    chmod 700 /root/.ssh
+    chmod 600 /root/.ssh/authorized_keys
 fi
 
 # Set proper ownership for workspace

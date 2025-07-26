@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
+	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -16,13 +18,16 @@ import (
 	"github.com/strrl/gra/cmd/gractl/client"
 )
 
-// workspaceSyncCmd represents the workspace-sync command
-var workspaceSyncCmd = &cobra.Command{
-	Use:   "workspace-sync RUNNER_ID",
-	Short: "Mount runner workspace locally using sshfs",
-	Long: `Mount the runner's /workspace directory to a local directory using sshfs over kubectl port-forward.
+// WorkspaceSyncCmd represents the workspace-sync command  
+var WorkspaceSyncCmd = &cobra.Command{
+	Use:   "workspace-sync [RUNNER_ID]",
+	Short: "Mount runner workspaces locally using sshfs",
+	Long: `Mount runner workspaces locally using sshfs over kubectl port-forward.
 
-This command will:
+If RUNNER_ID is specified, sync only that runner's workspace.
+If RUNNER_ID is omitted, sync all running runners' workspaces.
+
+For each runner, this command will:
 1. Check that the runner exists and is running
 2. Create a local directory at ./runners/RUNNER_ID/workspace
 3. Start kubectl port-forward to tunnel SSH traffic
@@ -32,19 +37,33 @@ This command will:
 Requirements:
 - kubectl must be available and configured for the cluster
 - sshfs must be installed on the local machine
-- The runner must have been created with SSH public key support
-- The runner must be in 'running' status
+- The runner(s) must have been created with SSH public key support
+- The runner(s) must be in 'running' status
 
-Example:
-  gractl runners workspace-sync runner-1
+Examples:
+  gractl workspace-sync runner-1    # Sync specific runner
+  gractl workspace-sync             # Sync all running runners
 
-The mounted workspace will be available at:
+The mounted workspace(s) will be available at:
   ./runners/runner-1/workspace/
+  ./runners/runner-2/workspace/
+  ...
 
 Press Ctrl+C to unmount and clean up.`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		runnerID := args[0]
+		// Initialize gRPC client
+		serverAddress, _ := cmd.Flags().GetString("server")
+		cfg := &client.Config{
+			ServerAddress: serverAddress,
+		}
+		
+		grpcClient, err := client.NewClient(cfg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to connect to server: %v\n", err)
+			os.Exit(1)
+		}
+		defer grpcClient.Close()
 
 		// Check dependencies first
 		if err := checkDependencies(); err != nil {
@@ -52,66 +71,138 @@ Press Ctrl+C to unmount and clean up.`,
 			os.Exit(1)
 		}
 
-		// Verify runner exists and is running
-		runner, err := getRunnerStatus(runnerID)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to get runner status: %v\n", err)
-			os.Exit(1)
-		}
-
-		if runner.Status != gradv1.RunnerStatus_RUNNER_STATUS_RUNNING {
-			fmt.Fprintf(os.Stderr, "Runner %s is not running (status: %s). Please wait for it to start.\n", 
-				runnerID, runner.Status.String())
-			os.Exit(1)
-		}
-
-		// Create local workspace directory
-		workspaceDir := client.GetRunnerWorkspaceDir(runnerID)
-		if err := client.CreateLocalDirectory(workspaceDir); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to create local workspace directory: %v\n", err)
-			os.Exit(1)
-		}
-
-		fmt.Printf("Created local workspace directory: %s\n", workspaceDir)
-
-		// Start kubectl port-forward
-		localPort, portForwardCmd, err := startPortForward(runnerID)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to start port forwarding: %v\n", err)
-			os.Exit(1)
-		}
-		defer func() {
-			if portForwardCmd != nil && portForwardCmd.Process != nil {
-				portForwardCmd.Process.Kill()
+		// Determine which runners to sync
+		var runnersToSync []string
+		if len(args) == 1 {
+			// Single runner specified
+			runnersToSync = []string{args[0]}
+		} else {
+			// Get all running runners
+			runningRunners, err := getRunningRunners(grpcClient)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to get running runners: %v\n", err)
+				os.Exit(1)
 			}
-		}()
+			runnersToSync = runningRunners
+		}
 
-		fmt.Printf("Port forwarding started: localhost:%d -> %s:22\n", localPort, runnerID)
+		if len(runnersToSync) == 0 {
+			fmt.Println("No running runners found to sync.")
+			os.Exit(0)
+		}
 
-		// Wait a moment for port forwarding to establish
-		time.Sleep(2 * time.Second)
+		fmt.Printf("Syncing %d runner(s): %s\n", len(runnersToSync), strings.Join(runnersToSync, ", "))
 
-		// Mount workspace using sshfs
-		_, err = startSSHFSMount(localPort, workspaceDir)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to mount workspace: %v\n", err)
+		// Verify all runners exist and are running
+		for _, runnerID := range runnersToSync {
+			runner, err := getRunnerStatus(grpcClient, runnerID)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to get runner status for %s: %v\n", runnerID, err)
+				os.Exit(1)
+			}
+
+			if runner.Status != gradv1.RunnerStatus_RUNNER_STATUS_RUNNING {
+				fmt.Fprintf(os.Stderr, "Runner %s is not running (status: %s). Skipping.\n", 
+					runnerID, runner.Status.String())
+				continue
+			}
+		}
+
+		// Setup workspace syncs for all runners
+		type runnerSync struct {
+			runnerID       string
+			workspaceDir   string
+			portForwardCmd *exec.Cmd
+			sshfsCmd       *exec.Cmd
+			localPort      int
+		}
+
+		var activeSyncs []runnerSync
+		var syncMutex sync.Mutex
+
+		// Start workspace sync for each runner
+		for _, runnerID := range runnersToSync {
+			// Create local workspace directory
+			workspaceDir := client.GetRunnerWorkspaceDir(runnerID)
+			if err := client.CreateLocalDirectory(workspaceDir); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to create local workspace directory for %s: %v\n", runnerID, err)
+				continue
+			}
+
+			fmt.Printf("Created local workspace directory: %s\n", workspaceDir)
+
+			// Start kubectl port-forward
+			localPort, portForwardCmd, err := startPortForward(runnerID)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to start port forwarding for %s: %v\n", runnerID, err)
+				continue
+			}
+
+			fmt.Printf("Port forwarding started: localhost:%d -> %s:22\n", localPort, runnerID)
+
+			// Wait a moment for port forwarding to establish
+			time.Sleep(2 * time.Second)
+
+			// Mount workspace using sshfs
+			sshfsCmd, err := startSSHFSMount(localPort, workspaceDir)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to mount workspace for %s: %v\n", runnerID, err)
+				if portForwardCmd != nil && portForwardCmd.Process != nil {
+					portForwardCmd.Process.Kill()
+				}
+				continue
+			}
+
+			fmt.Printf("Workspace mounted: %s:/workspace -> %s\n", runnerID, workspaceDir)
+
+			// Add to active syncs
+			syncMutex.Lock()
+			activeSyncs = append(activeSyncs, runnerSync{
+				runnerID:       runnerID,
+				workspaceDir:   workspaceDir,
+				portForwardCmd: portForwardCmd,
+				sshfsCmd:       sshfsCmd,
+				localPort:      localPort,
+			})
+			syncMutex.Unlock()
+		}
+
+		if len(activeSyncs) == 0 {
+			fmt.Println("No workspace syncs were successfully established.")
 			os.Exit(1)
 		}
-		defer func() {
-			unmountWorkspace(workspaceDir)
-		}()
 
-		fmt.Printf("Workspace mounted: %s -> %s\n", runnerID+":/workspace", workspaceDir)
-		fmt.Println("Press Ctrl+C to unmount and exit...")
+		fmt.Printf("\nSuccessfully synced %d workspace(s). Press Ctrl+C to unmount and exit...\n", len(activeSyncs))
+
+		// Setup cleanup function
+		cleanupAll := func() {
+			fmt.Println("\nCleaning up all workspace syncs...")
+			syncMutex.Lock()
+			defer syncMutex.Unlock()
+			
+			for _, sync := range activeSyncs {
+				fmt.Printf("Cleaning up %s...\n", sync.runnerID)
+				
+				// Unmount workspace
+				unmountWorkspace(sync.workspaceDir)
+				
+				// Kill sshfs process
+				if sync.sshfsCmd != nil && sync.sshfsCmd.Process != nil {
+					sync.sshfsCmd.Process.Kill()
+				}
+				
+				// Kill port forwarding process
+				if sync.portForwardCmd != nil && sync.portForwardCmd.Process != nil {
+					sync.portForwardCmd.Process.Kill()
+				}
+			}
+		}
+		defer cleanupAll()
 
 		// Wait for interrupt signal
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 		<-sigChan
-
-		fmt.Println("\nReceived interrupt signal, cleaning up...")
-
-		// Cleanup will be handled by defer statements
 	},
 }
 
@@ -128,8 +219,28 @@ func checkDependencies() error {
 	return nil
 }
 
+// getRunningRunners retrieves all runners with RUNNING status
+func getRunningRunners(grpcClient *client.Client) ([]string, error) {
+	req := &gradv1.ListRunnersRequest{
+		Status: gradv1.RunnerStatus_RUNNER_STATUS_RUNNING,
+		Limit:  100, // reasonable limit for workspace sync
+	}
+
+	resp, err := grpcClient.RunnerService().ListRunners(context.Background(), req)
+	if err != nil {
+		return nil, err
+	}
+
+	var runnerIDs []string
+	for _, runner := range resp.Runners {
+		runnerIDs = append(runnerIDs, runner.Id)
+	}
+
+	return runnerIDs, nil
+}
+
 // getRunnerStatus retrieves the current status of a runner
-func getRunnerStatus(runnerID string) (*gradv1.Runner, error) {
+func getRunnerStatus(grpcClient *client.Client, runnerID string) (*gradv1.Runner, error) {
 	req := &gradv1.GetRunnerRequest{
 		RunnerId: runnerID,
 	}
@@ -147,10 +258,14 @@ func startPortForward(runnerID string) (int, *exec.Cmd, error) {
 	// Use a high port number to avoid conflicts
 	localPort := 2222 + (int(time.Now().Unix()) % 1000)
 
-	podName := runnerID // Assuming pod name matches runner ID
+	// Pod name format matches what's used in kubernetes.go: grad-runner-{runnerID}
+	podName := fmt.Sprintf("grad-runner-%s", runnerID)
 	portMapping := fmt.Sprintf("%d:22", localPort)
 
 	cmd := exec.Command("kubectl", "port-forward", "pod/"+podName, portMapping)
+	
+	// Debug: Print the kubectl command for debugging
+	fmt.Printf("DEBUG: Executing kubectl command: %s\n", strings.Join(cmd.Args, " "))
 	
 	// Start the process
 	if err := cmd.Start(); err != nil {
@@ -166,15 +281,19 @@ func startSSHFSMount(localPort int, mountPoint string) (*exec.Cmd, error) {
 	
 	// sshfs command with appropriate options
 	cmd := exec.Command("sshfs",
-		"runner@localhost:/workspace", // remote path
-		mountPoint,                    // local mount point
-		"-p", portStr,                // SSH port
-		"-o", "reconnect",            // automatically reconnect
+		"root@localhost:/workspace", // remote path - use root user for proper permissions
+		mountPoint,                  // local mount point
+		"-p", portStr,              // SSH port
+		"-o", "reconnect",          // automatically reconnect
 		"-o", "UserKnownHostsFile=/dev/null", // skip host key verification
 		"-o", "StrictHostKeyChecking=no",     // skip host key checking
 		"-o", "PasswordAuthentication=no",    // use key-based auth only
 		"-o", "IdentitiesOnly=yes",           // only use specified identity
 	)
+
+	// Debug: Print the full sshfs command for debugging
+	fmt.Printf("DEBUG: Executing sshfs command: %s %s\n", cmd.Path, strings.Join(cmd.Args[1:], " "))
+	fmt.Printf("DEBUG: Full command: %s\n", strings.Join(cmd.Args, " "))
 
 	// Run sshfs in the background
 	if err := cmd.Start(); err != nil {
@@ -209,5 +328,8 @@ func unmountWorkspace(mountPoint string) {
 }
 
 func init() {
-	RunnersCmd.AddCommand(workspaceSyncCmd)
+	// Add global flags to the workspace-sync command
+	WorkspaceSyncCmd.Flags().String("server", "localhost:9090", "gRPC server address")
 }
+
+// init() removed from runners.go - WorkspaceSyncCmd is now registered as a top-level command in main.go

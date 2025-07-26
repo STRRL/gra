@@ -21,6 +21,7 @@ func init() {
 	// Register subcommands
 	rootCmd.AddCommand(cmd.RunnersCmd)
 	rootCmd.AddCommand(cmd.ExecuteCmd)
+	rootCmd.AddCommand(cmd.WorkspaceSyncCmd)
 }
 
 func Execute() {
