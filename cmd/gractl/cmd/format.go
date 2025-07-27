@@ -130,8 +130,8 @@ func printRunnerDetails(runner *gradv1.Runner) error {
 
 	if len(runner.Env) > 0 {
 		fmt.Printf("\nEnvironment Variables:\n")
-		for k, v := range runner.Env {
-			fmt.Printf("  %s=%s\n", k, v)
+		for k := range runner.Env {
+			fmt.Printf("  %s\n", k)
 		}
 	}
 
