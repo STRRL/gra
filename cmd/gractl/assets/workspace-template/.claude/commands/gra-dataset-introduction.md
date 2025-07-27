@@ -47,7 +47,7 @@ If multiple files exist:
 
 ## Step 5: Generate Dataset Introduction
 
-Create a comprehensive `dataset-introduction.md` file containing:
+Create a comprehensive `dataset-introduction.md` file **in the current local directory** containing:
 
 - **Overview**: Dataset name, purpose, and source
 - **Structure**: File organization and format details
@@ -56,6 +56,8 @@ Create a comprehensive `dataset-introduction.md` file containing:
 - **Data Quality**: Any issues or considerations found
 - **Use Cases**: Potential applications and research directions
 - **Technical Notes**: Access patterns, performance considerations
+
+**Note**: The `dataset-introduction.md` file should be created on the local machine in the current working directory, not on the remote runner machine.
 
 ## Execution Commands
 

@@ -548,7 +548,11 @@ type ExecuteCommandRequest struct {
 	// Timeout for execution (in seconds)
 	Timeout int32 `protobuf:"varint,4,opt,name=timeout,proto3" json:"timeout,omitempty"`
 	// Working directory for execution
-	WorkingDir    string `protobuf:"bytes,5,opt,name=working_dir,json=workingDir,proto3" json:"working_dir,omitempty"`
+	WorkingDir string `protobuf:"bytes,5,opt,name=working_dir,json=workingDir,proto3" json:"working_dir,omitempty"`
+	// Workspace configuration for S3 mounting (used when auto-creating runners)
+	Workspace *WorkspaceConfig `protobuf:"bytes,6,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	// Environment variables to set in the runner (used when auto-creating runners)
+	Env           map[string]string `protobuf:"bytes,7,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -616,6 +620,20 @@ func (x *ExecuteCommandRequest) GetWorkingDir() string {
 		return x.WorkingDir
 	}
 	return ""
+}
+
+func (x *ExecuteCommandRequest) GetWorkspace() *WorkspaceConfig {
+	if x != nil {
+		return x.Workspace
+	}
+	return nil
+}
+
+func (x *ExecuteCommandRequest) GetEnv() map[string]string {
+	if x != nil {
+		return x.Env
+	}
+	return nil
 }
 
 // ExecuteCommandStreamResponse defines streaming response for command execution
@@ -1059,14 +1077,19 @@ const file_grad_v1_runner_service_proto_rawDesc = "" +
 	"\x06offset\x18\x03 \x01(\x05R\x06offset\"V\n" +
 	"\x13ListRunnersResponse\x12)\n" +
 	"\arunners\x18\x01 \x03(\v2\x0f.grad.v1.RunnerR\arunners\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x05R\x05total\"\x9f\x01\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\"\xca\x02\n" +
 	"\x15ExecuteCommandRequest\x12\x1b\n" +
 	"\trunner_id\x18\x01 \x01(\tR\brunnerId\x12\x18\n" +
 	"\acommand\x18\x02 \x01(\tR\acommand\x12\x14\n" +
 	"\x05shell\x18\x03 \x01(\tR\x05shell\x12\x18\n" +
 	"\atimeout\x18\x04 \x01(\x05R\atimeout\x12\x1f\n" +
 	"\vworking_dir\x18\x05 \x01(\tR\n" +
-	"workingDir\"x\n" +
+	"workingDir\x126\n" +
+	"\tworkspace\x18\x06 \x01(\v2\x18.grad.v1.WorkspaceConfigR\tworkspace\x129\n" +
+	"\x03env\x18\a \x03(\v2'.grad.v1.ExecuteCommandRequest.EnvEntryR\x03env\x1a6\n" +
+	"\bEnvEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"x\n" +
 	"\x1cExecuteCommandStreamResponse\x12'\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x13.grad.v1.StreamTypeR\x04type\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\fR\x04data\x12\x1b\n" +
@@ -1139,7 +1162,7 @@ func file_grad_v1_runner_service_proto_rawDescGZIP() []byte {
 }
 
 var file_grad_v1_runner_service_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_grad_v1_runner_service_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_grad_v1_runner_service_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_grad_v1_runner_service_proto_goTypes = []any{
 	(StreamType)(0),                      // 0: grad.v1.StreamType
 	(RunnerStatus)(0),                    // 1: grad.v1.RunnerStatus
@@ -1158,7 +1181,8 @@ var file_grad_v1_runner_service_proto_goTypes = []any{
 	(*ResourceRequirements)(nil),         // 14: grad.v1.ResourceRequirements
 	(*SSHDetails)(nil),                   // 15: grad.v1.SSHDetails
 	nil,                                  // 16: grad.v1.CreateRunnerRequest.EnvEntry
-	nil,                                  // 17: grad.v1.Runner.EnvEntry
+	nil,                                  // 17: grad.v1.ExecuteCommandRequest.EnvEntry
+	nil,                                  // 18: grad.v1.Runner.EnvEntry
 }
 var file_grad_v1_runner_service_proto_depIdxs = []int32{
 	16, // 0: grad.v1.CreateRunnerRequest.env:type_name -> grad.v1.CreateRunnerRequest.EnvEntry
@@ -1166,29 +1190,31 @@ var file_grad_v1_runner_service_proto_depIdxs = []int32{
 	13, // 2: grad.v1.CreateRunnerResponse.runner:type_name -> grad.v1.Runner
 	1,  // 3: grad.v1.ListRunnersRequest.status:type_name -> grad.v1.RunnerStatus
 	13, // 4: grad.v1.ListRunnersResponse.runners:type_name -> grad.v1.Runner
-	0,  // 5: grad.v1.ExecuteCommandStreamResponse.type:type_name -> grad.v1.StreamType
-	13, // 6: grad.v1.GetRunnerResponse.runner:type_name -> grad.v1.Runner
-	1,  // 7: grad.v1.Runner.status:type_name -> grad.v1.RunnerStatus
-	14, // 8: grad.v1.Runner.resources:type_name -> grad.v1.ResourceRequirements
-	15, // 9: grad.v1.Runner.ssh:type_name -> grad.v1.SSHDetails
-	17, // 10: grad.v1.Runner.env:type_name -> grad.v1.Runner.EnvEntry
-	2,  // 11: grad.v1.RunnerService.CreateRunner:input_type -> grad.v1.CreateRunnerRequest
-	5,  // 12: grad.v1.RunnerService.DeleteRunner:input_type -> grad.v1.DeleteRunnerRequest
-	7,  // 13: grad.v1.RunnerService.ListRunners:input_type -> grad.v1.ListRunnersRequest
-	9,  // 14: grad.v1.RunnerService.ExecuteCommandStream:input_type -> grad.v1.ExecuteCommandRequest
-	11, // 15: grad.v1.RunnerService.GetRunner:input_type -> grad.v1.GetRunnerRequest
-	9,  // 16: grad.v1.ExecuteService.ExecuteCommand:input_type -> grad.v1.ExecuteCommandRequest
-	4,  // 17: grad.v1.RunnerService.CreateRunner:output_type -> grad.v1.CreateRunnerResponse
-	6,  // 18: grad.v1.RunnerService.DeleteRunner:output_type -> grad.v1.DeleteRunnerResponse
-	8,  // 19: grad.v1.RunnerService.ListRunners:output_type -> grad.v1.ListRunnersResponse
-	10, // 20: grad.v1.RunnerService.ExecuteCommandStream:output_type -> grad.v1.ExecuteCommandStreamResponse
-	12, // 21: grad.v1.RunnerService.GetRunner:output_type -> grad.v1.GetRunnerResponse
-	10, // 22: grad.v1.ExecuteService.ExecuteCommand:output_type -> grad.v1.ExecuteCommandStreamResponse
-	17, // [17:23] is the sub-list for method output_type
-	11, // [11:17] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	3,  // 5: grad.v1.ExecuteCommandRequest.workspace:type_name -> grad.v1.WorkspaceConfig
+	17, // 6: grad.v1.ExecuteCommandRequest.env:type_name -> grad.v1.ExecuteCommandRequest.EnvEntry
+	0,  // 7: grad.v1.ExecuteCommandStreamResponse.type:type_name -> grad.v1.StreamType
+	13, // 8: grad.v1.GetRunnerResponse.runner:type_name -> grad.v1.Runner
+	1,  // 9: grad.v1.Runner.status:type_name -> grad.v1.RunnerStatus
+	14, // 10: grad.v1.Runner.resources:type_name -> grad.v1.ResourceRequirements
+	15, // 11: grad.v1.Runner.ssh:type_name -> grad.v1.SSHDetails
+	18, // 12: grad.v1.Runner.env:type_name -> grad.v1.Runner.EnvEntry
+	2,  // 13: grad.v1.RunnerService.CreateRunner:input_type -> grad.v1.CreateRunnerRequest
+	5,  // 14: grad.v1.RunnerService.DeleteRunner:input_type -> grad.v1.DeleteRunnerRequest
+	7,  // 15: grad.v1.RunnerService.ListRunners:input_type -> grad.v1.ListRunnersRequest
+	9,  // 16: grad.v1.RunnerService.ExecuteCommandStream:input_type -> grad.v1.ExecuteCommandRequest
+	11, // 17: grad.v1.RunnerService.GetRunner:input_type -> grad.v1.GetRunnerRequest
+	9,  // 18: grad.v1.ExecuteService.ExecuteCommand:input_type -> grad.v1.ExecuteCommandRequest
+	4,  // 19: grad.v1.RunnerService.CreateRunner:output_type -> grad.v1.CreateRunnerResponse
+	6,  // 20: grad.v1.RunnerService.DeleteRunner:output_type -> grad.v1.DeleteRunnerResponse
+	8,  // 21: grad.v1.RunnerService.ListRunners:output_type -> grad.v1.ListRunnersResponse
+	10, // 22: grad.v1.RunnerService.ExecuteCommandStream:output_type -> grad.v1.ExecuteCommandStreamResponse
+	12, // 23: grad.v1.RunnerService.GetRunner:output_type -> grad.v1.GetRunnerResponse
+	10, // 24: grad.v1.ExecuteService.ExecuteCommand:output_type -> grad.v1.ExecuteCommandStreamResponse
+	19, // [19:25] is the sub-list for method output_type
+	13, // [13:19] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_grad_v1_runner_service_proto_init() }
@@ -1202,7 +1228,7 @@ func file_grad_v1_runner_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_grad_v1_runner_service_proto_rawDesc), len(file_grad_v1_runner_service_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

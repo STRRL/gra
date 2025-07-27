@@ -149,6 +149,16 @@ func TestFromProtoExecuteCommandRequest(t *testing.T) {
 		Shell:      "bash",
 		Timeout:    30,
 		WorkingDir: "/tmp",
+		Env: map[string]string{
+			"TEST_ENV": "test_value",
+		},
+		Workspace: &gradv1.WorkspaceConfig{
+			Bucket:   "test-bucket",
+			Endpoint: "s3.amazonaws.com",
+			Prefix:   "data/",
+			Region:   "us-west-2",
+			ReadOnly: true,
+		},
 	}
 
 	domainReq := FromProtoExecuteCommandRequest(protoReq)
@@ -171,6 +181,58 @@ func TestFromProtoExecuteCommandRequest(t *testing.T) {
 
 	if domainReq.WorkingDir != "/tmp" {
 		t.Errorf("Expected working dir '/tmp', got '%s'", domainReq.WorkingDir)
+	}
+
+	if domainReq.Env["TEST_ENV"] != "test_value" {
+		t.Errorf("Expected env TEST_ENV='test_value', got '%s'", domainReq.Env["TEST_ENV"])
+	}
+
+	if domainReq.Workspace == nil {
+		t.Errorf("Expected workspace config to be present")
+	} else {
+		if domainReq.Workspace.Bucket != "test-bucket" {
+			t.Errorf("Expected workspace bucket 'test-bucket', got '%s'", domainReq.Workspace.Bucket)
+		}
+		if domainReq.Workspace.Endpoint != "s3.amazonaws.com" {
+			t.Errorf("Expected workspace endpoint 's3.amazonaws.com', got '%s'", domainReq.Workspace.Endpoint)
+		}
+		if domainReq.Workspace.Prefix != "data/" {
+			t.Errorf("Expected workspace prefix 'data/', got '%s'", domainReq.Workspace.Prefix)
+		}
+		if domainReq.Workspace.Region != "us-west-2" {
+			t.Errorf("Expected workspace region 'us-west-2', got '%s'", domainReq.Workspace.Region)
+		}
+		if !domainReq.Workspace.ReadOnly {
+			t.Errorf("Expected workspace to be read-only")
+		}
+	}
+}
+
+func TestFromProtoExecuteCommandRequestNoWorkspace(t *testing.T) {
+	protoReq := &gradv1.ExecuteCommandRequest{
+		RunnerId:   "runner-456",
+		Command:    "ls -la",
+		Shell:      "sh",
+		Timeout:    60,
+		WorkingDir: "/home",
+		Env: map[string]string{
+			"HOME": "/home/user",
+		},
+		// No workspace config
+	}
+
+	domainReq := FromProtoExecuteCommandRequest(protoReq)
+
+	if domainReq.RunnerID != "runner-456" {
+		t.Errorf("Expected runner ID 'runner-456', got '%s'", domainReq.RunnerID)
+	}
+
+	if domainReq.Workspace != nil {
+		t.Errorf("Expected workspace config to be nil, got %+v", domainReq.Workspace)
+	}
+
+	if domainReq.Env["HOME"] != "/home/user" {
+		t.Errorf("Expected env HOME='/home/user', got '%s'", domainReq.Env["HOME"])
 	}
 }
 

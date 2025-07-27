@@ -188,15 +188,27 @@ func FromProtoResourceRequirements(rr *gradv1.ResourceRequirements) *ResourceReq
 
 // FromProtoExecuteCommandRequest converts proto request to domain request
 func FromProtoExecuteCommandRequest(req *gradv1.ExecuteCommandRequest) *ExecuteCommandRequest {
-	return &ExecuteCommandRequest{
+	result := &ExecuteCommandRequest{
 		RunnerID:   req.RunnerId,
 		Command:    req.Command,
 		Shell:      req.Shell,
 		Timeout:    req.Timeout,
 		WorkingDir: req.WorkingDir,
-		// Note: Workspace and Env are not in the proto ExecuteCommandRequest yet
-		// They would need to be added if ExecuteService needs to accept workspace config
+		Env:        req.Env,
 	}
+	
+	// Convert workspace config if provided
+	if req.Workspace != nil {
+		result.Workspace = &WorkspaceConfig{
+			Bucket:   req.Workspace.Bucket,
+			Endpoint: req.Workspace.Endpoint,
+			Prefix:   req.Workspace.Prefix,
+			Region:   req.Workspace.Region,
+			ReadOnly: req.Workspace.ReadOnly,
+		}
+	}
+	
+	return result
 }
 
 

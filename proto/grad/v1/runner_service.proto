@@ -107,6 +107,12 @@ message ExecuteCommandRequest {
   
   // Working directory for execution
   string working_dir = 5;
+  
+  // Workspace configuration for S3 mounting (used when auto-creating runners)
+  WorkspaceConfig workspace = 6;
+  
+  // Environment variables to set in the runner (used when auto-creating runners)
+  map<string, string> env = 7;
 }
 
 // ExecuteCommandStreamResponse defines streaming response for command execution
