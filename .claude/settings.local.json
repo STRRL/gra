@@ -33,7 +33,8 @@
       "WebFetch(domain:duckdb.org)",
       "Bash(kubectl exec:*)",
       "Bash(go list:*)",
-      "Bash(kubectl get pods:*)"
+      "Bash(kubectl get pods:*)",
+      "WebFetch(domain:dev.to)"
     ],
     "deny": []
   }

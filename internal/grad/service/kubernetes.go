@@ -182,7 +182,14 @@ func (k *KubernetesClient) CreateRunnerPod(ctx context.Context, runner *Runner) 
 func (k *KubernetesClient) DeleteRunnerPod(ctx context.Context, runnerID string) error {
 	req := BuildPodDeletionRequest(runnerID, k.config)
 
-	err := k.clientset.CoreV1().Pods(req.Namespace).Delete(ctx, req.PodName, metav1.DeleteOptions{})
+	// Use grace period 0 and force to ensure immediate deletion
+	gracePeriodSeconds := int64(0)
+	deleteOptions := metav1.DeleteOptions{
+		GracePeriodSeconds: &gracePeriodSeconds,
+		PropagationPolicy:  &[]metav1.DeletionPropagation{metav1.DeletePropagationForeground}[0],
+	}
+
+	err := k.clientset.CoreV1().Pods(req.Namespace).Delete(ctx, req.PodName, deleteOptions)
 	if err != nil {
 		return fmt.Errorf("failed to delete runner pod: %w", err)
 	}

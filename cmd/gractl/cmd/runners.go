@@ -11,12 +11,14 @@ import (
 
 	gradv1 "github.com/strrl/gra/gen/grad/v1"
 	"github.com/strrl/gra/cmd/gractl/client"
+	"github.com/strrl/gra/cmd/gractl/config"
 )
 
 var (
 	serverAddress string
 	outputFormatStr string
 	grpcClient    *client.Client
+	globalConfig  *config.Config
 )
 
 // RunnersCmd represents the runners command
@@ -25,6 +27,19 @@ var RunnersCmd = &cobra.Command{
 	Short: "Manage runners",
 	Long:  `Manage runner instances including creating, listing, and executing commands.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Load configuration from file and environment
+		var err error
+		globalConfig, err = config.LoadConfig()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Use server address from config if not provided via flag
+		if serverAddress == "localhost:9090" && globalConfig.Server.Address != "" {
+			serverAddress = globalConfig.Server.Address
+		}
+
 		// Set output format
 		switch outputFormatStr {
 		case "json":
@@ -41,7 +56,6 @@ var RunnersCmd = &cobra.Command{
 			ServerAddress: serverAddress,
 		}
 		
-		var err error
 		grpcClient, err = client.NewClient(cfg)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to connect to server: %v\n", err)
@@ -72,6 +86,25 @@ var createCmd = &cobra.Command{
 		s3Region, _ := cmd.Flags().GetString("s3-region")
 		readOnly, _ := cmd.Flags().GetBool("read-only")
 
+		// Use config values as defaults if flags are not provided
+		if s3Bucket == "" && globalConfig.S3.Bucket != "" {
+			s3Bucket = globalConfig.S3.Bucket
+		}
+		// Always use config values for other S3 settings if not explicitly provided via flags
+		// This allows mixing --s3-bucket flag with config file settings
+		if s3Endpoint == "" && globalConfig.S3.Endpoint != "" {
+			s3Endpoint = globalConfig.S3.Endpoint
+		}
+		if s3Prefix == "" && globalConfig.S3.Prefix != "" {
+			s3Prefix = globalConfig.S3.Prefix
+		}
+		if s3Region == "" && globalConfig.S3.Region != "" {
+			s3Region = globalConfig.S3.Region
+		}
+		if !cmd.Flags().Changed("read-only") && globalConfig.S3.ReadOnly {
+			readOnly = globalConfig.S3.ReadOnly
+		}
+
 		// Parse environment variables
 		envMap := make(map[string]string)
 		for _, env := range envVars {
@@ -79,6 +112,18 @@ var createCmd = &cobra.Command{
 			if len(parts) == 2 {
 				envMap[parts[0]] = parts[1]
 			}
+		}
+
+		// Always auto-inject AWS credentials from config if available (regardless of bucket source)
+		// This allows using --s3-bucket flag while still getting credentials from config
+		if globalConfig.S3.AccessKeyID != "" {
+			envMap["AWS_ACCESS_KEY_ID"] = globalConfig.S3.AccessKeyID
+		}
+		if globalConfig.S3.SecretAccessKey != "" {
+			envMap["AWS_SECRET_ACCESS_KEY"] = globalConfig.S3.SecretAccessKey
+		}
+		if globalConfig.S3.SessionToken != "" {
+			envMap["AWS_SESSION_TOKEN"] = globalConfig.S3.SessionToken
 		}
 
 		// Automatically inject SSH public key if available
@@ -91,7 +136,7 @@ var createCmd = &cobra.Command{
 			Env:  envMap,
 		}
 		
-		// Add workspace configuration if S3 bucket is specified
+		// Add workspace configuration if S3 bucket is specified (either via flag or config)
 		if s3Bucket != "" {
 			req.Workspace = &gradv1.WorkspaceConfig{
 				Bucket:    s3Bucket,
