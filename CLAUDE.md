@@ -159,7 +159,7 @@ The service exposes these gRPC methods:
 
 ### Workspace Sync Feature
 
-**NEW**: `gractl workspace-sync` command enables local file synchronization with remote runners (all runners or specific runner).
+**NEW**: `gractl workspace sync` command enables local file synchronization with remote runners (all runners or specific runner).
 
 **SSH Key Integration**: Runner creation automatically injects user's SSH public key:
 ```go
@@ -172,8 +172,8 @@ if sshPublicKey, err := client.GetUserSSHPublicKey(); err == nil && sshPublicKey
 **Local Workspace Mounting**: Mount remote `/workspace` to local directory:
 ```bash
 # Example usage
-gractl workspace-sync runner-1    # Sync specific runner
-gractl workspace-sync             # Sync all running runners
+gractl workspace sync runner-1    # Sync specific runner
+gractl workspace sync             # Sync all running runners
 
 # Creates and mounts to:
 ./runners/runner-1/workspace/

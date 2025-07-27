@@ -92,7 +92,7 @@ gractl
 │   ├── get
 │   └── exec
 ├── execute
-└── workspace-sync (NEW: mount remote workspace(s) locally)
+└── workspace sync (NEW: mount remote workspace(s) locally)
 ```
 
 **Client Architecture**:

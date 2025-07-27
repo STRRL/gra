@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the implementation of the `gractl workspace-sync` feature, which enables seamless file synchronization between local development environments and remote runner workspaces using sshfs over kubectl port-forward.
+This document describes the implementation of the `gractl workspace sync` feature, which enables seamless file synchronization between local development environments and remote runner workspaces using sshfs over kubectl port-forward.
 
 ## Feature Requirements
 
@@ -26,7 +26,7 @@ As a developer using gra runners for data analytics, I want to mount the remote 
 
 ### Component Interaction
 
-The workspace-sync feature operates entirely on the client side, leveraging existing infrastructure:
+The workspace sync feature operates entirely on the client side, leveraging existing infrastructure:
 
 1. **Runner Creation**: Inject user's SSH public key via PUBLIC_KEY environment variable
 2. **Port Forwarding**: Use kubectl port-forward to tunnel SSH traffic (pod:22 → localhost:random_port)
@@ -51,7 +51,7 @@ The workspace-sync feature operates entirely on the client side, leveraging exis
 - Update runner creation to include PUBLIC_KEY environment variable
 - Ensure backward compatibility for runners without SSH keys
 
-### Phase 2: Core workspace-sync Command
+### Phase 2: Core workspace sync Command
 - Create `cmd/gractl/cmd/workspace_sync.go`
 - Implement runner status checking
 - Add local directory management
@@ -149,7 +149,7 @@ sshfs runner@localhost:/workspace ./runners/<runner-id>/workspace \
 - Error handling paths
 
 ### Integration Tests
-- End-to-end workspace-sync flow
+- End-to-end workspace sync flow
 - Runner creation with SSH keys
 - Cleanup and error scenarios
 
@@ -177,6 +177,6 @@ sshfs runner@localhost:/workspace ./runners/<runner-id>/workspace \
 
 ## Conclusion
 
-The workspace-sync feature provides a seamless bridge between local development and remote execution environments. By leveraging existing SSH infrastructure and kubectl port-forwarding, we can provide a robust, secure, and user-friendly file synchronization solution without requiring server-side changes.
+The workspace sync feature provides a seamless bridge between local development and remote execution environments. By leveraging existing SSH infrastructure and kubectl port-forwarding, we can provide a robust, secure, and user-friendly file synchronization solution without requiring server-side changes.
 
 The implementation maintains backward compatibility while adding powerful new capabilities for developer workflows, enabling the full potential of remote execution with local development comfort.
