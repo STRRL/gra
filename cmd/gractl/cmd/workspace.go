@@ -18,9 +18,19 @@ import (
 	"github.com/strrl/gra/cmd/gractl/client"
 )
 
-// WorkspaceSyncCmd represents the workspace-sync command  
-var WorkspaceSyncCmd = &cobra.Command{
-	Use:   "workspace-sync [RUNNER_ID]",
+// WorkspaceCmd represents the workspace command
+var WorkspaceCmd = &cobra.Command{
+	Use:   "workspace",
+	Short: "Workspace management commands",
+	Long:  `Manage workspace operations including synchronization and initialization.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Help()
+	},
+}
+
+// workspaceSyncCmd represents the workspace sync command  
+var workspaceSyncCmd = &cobra.Command{
+	Use:   "sync [RUNNER_ID]",
 	Short: "Mount runner workspaces locally using sshfs",
 	Long: `Mount runner workspaces locally using sshfs over kubectl port-forward.
 
@@ -41,8 +51,8 @@ Requirements:
 - The runner(s) must be in 'running' status
 
 Examples:
-  gractl workspace-sync runner-1    # Sync specific runner
-  gractl workspace-sync             # Sync all running runners
+  gractl workspace sync runner-1    # Sync specific runner
+  gractl workspace sync             # Sync all running runners
 
 The mounted workspace(s) will be available at:
   ./runners/runner-1/workspace/
@@ -66,7 +76,7 @@ Press Ctrl+C to unmount and clean up.`,
 		defer grpcClient.Close()
 
 		// Check dependencies first
-		if err := checkDependencies(); err != nil {
+		if err := checkWorkspaceDependencies(); err != nil {
 			fmt.Fprintf(os.Stderr, "Dependency check failed: %v\n", err)
 			os.Exit(1)
 		}
@@ -78,7 +88,7 @@ Press Ctrl+C to unmount and clean up.`,
 			runnersToSync = []string{args[0]}
 		} else {
 			// Get all running runners
-			runningRunners, err := getRunningRunners(grpcClient)
+			runningRunners, err := getWorkspaceRunningRunners(grpcClient)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to get running runners: %v\n", err)
 				os.Exit(1)
@@ -95,7 +105,7 @@ Press Ctrl+C to unmount and clean up.`,
 
 		// Verify all runners exist and are running
 		for _, runnerID := range runnersToSync {
-			runner, err := getRunnerStatus(grpcClient, runnerID)
+			runner, err := getWorkspaceRunnerStatus(grpcClient, runnerID)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to get runner status for %s: %v\n", runnerID, err)
 				os.Exit(1)
@@ -132,7 +142,7 @@ Press Ctrl+C to unmount and clean up.`,
 			fmt.Printf("Created local workspace directory: %s\n", workspaceDir)
 
 			// Start kubectl port-forward
-			localPort, portForwardCmd, err := startPortForward(runnerID)
+			localPort, portForwardCmd, err := startWorkspacePortForward(runnerID)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to start port forwarding for %s: %v\n", runnerID, err)
 				continue
@@ -144,7 +154,7 @@ Press Ctrl+C to unmount and clean up.`,
 			time.Sleep(2 * time.Second)
 
 			// Mount workspace using sshfs
-			sshfsCmd, err := startSSHFSMount(localPort, workspaceDir)
+			sshfsCmd, err := startWorkspaceSSHFSMount(localPort, workspaceDir)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to mount workspace for %s: %v\n", runnerID, err)
 				if portForwardCmd != nil && portForwardCmd.Process != nil {
@@ -184,7 +194,7 @@ Press Ctrl+C to unmount and clean up.`,
 				fmt.Printf("Cleaning up %s...\n", sync.runnerID)
 				
 				// Unmount workspace
-				unmountWorkspace(sync.workspaceDir)
+				unmountWorkspaceDir(sync.workspaceDir)
 				
 				// Kill sshfs process
 				if sync.sshfsCmd != nil && sync.sshfsCmd.Process != nil {
@@ -206,8 +216,19 @@ Press Ctrl+C to unmount and clean up.`,
 	},
 }
 
-// checkDependencies verifies that required external commands are available
-func checkDependencies() error {
+// workspaceInitCmd represents the workspace init command
+var workspaceInitCmd = &cobra.Command{
+	Use:   "init",
+	Short: "Initialize workspace configuration",
+	Long:  `Initialize workspace configuration (placeholder command).`,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Workspace init command - placeholder implementation")
+		fmt.Println("This command is reserved for future workspace initialization features.")
+	},
+}
+
+// checkWorkspaceDependencies verifies that required external commands are available
+func checkWorkspaceDependencies() error {
 	if err := client.CheckCommandAvailable("kubectl"); err != nil {
 		return fmt.Errorf("kubectl not found: %w", err)
 	}
@@ -219,8 +240,8 @@ func checkDependencies() error {
 	return nil
 }
 
-// getRunningRunners retrieves all runners with RUNNING status
-func getRunningRunners(grpcClient *client.Client) ([]string, error) {
+// getWorkspaceRunningRunners retrieves all runners with RUNNING status
+func getWorkspaceRunningRunners(grpcClient *client.Client) ([]string, error) {
 	req := &gradv1.ListRunnersRequest{
 		Status: gradv1.RunnerStatus_RUNNER_STATUS_RUNNING,
 		Limit:  100, // reasonable limit for workspace sync
@@ -239,8 +260,8 @@ func getRunningRunners(grpcClient *client.Client) ([]string, error) {
 	return runnerIDs, nil
 }
 
-// getRunnerStatus retrieves the current status of a runner
-func getRunnerStatus(grpcClient *client.Client, runnerID string) (*gradv1.Runner, error) {
+// getWorkspaceRunnerStatus retrieves the current status of a runner
+func getWorkspaceRunnerStatus(grpcClient *client.Client, runnerID string) (*gradv1.Runner, error) {
 	req := &gradv1.GetRunnerRequest{
 		RunnerId: runnerID,
 	}
@@ -253,8 +274,8 @@ func getRunnerStatus(grpcClient *client.Client, runnerID string) (*gradv1.Runner
 	return resp.Runner, nil
 }
 
-// startPortForward starts kubectl port-forward and returns the local port and process
-func startPortForward(runnerID string) (int, *exec.Cmd, error) {
+// startWorkspacePortForward starts kubectl port-forward and returns the local port and process
+func startWorkspacePortForward(runnerID string) (int, *exec.Cmd, error) {
 	// Use a high port number to avoid conflicts
 	localPort := 2222 + (int(time.Now().Unix()) % 1000)
 
@@ -275,8 +296,8 @@ func startPortForward(runnerID string) (int, *exec.Cmd, error) {
 	return localPort, cmd, nil
 }
 
-// startSSHFSMount mounts the remote workspace using sshfs
-func startSSHFSMount(localPort int, mountPoint string) (*exec.Cmd, error) {
+// startWorkspaceSSHFSMount mounts the remote workspace using sshfs
+func startWorkspaceSSHFSMount(localPort int, mountPoint string) (*exec.Cmd, error) {
 	portStr := strconv.Itoa(localPort)
 	
 	// sshfs command with appropriate options
@@ -312,8 +333,8 @@ func startSSHFSMount(localPort int, mountPoint string) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-// unmountWorkspace safely unmounts the sshfs filesystem
-func unmountWorkspace(mountPoint string) {
+// unmountWorkspaceDir safely unmounts the sshfs filesystem
+func unmountWorkspaceDir(mountPoint string) {
 	fmt.Printf("Unmounting workspace: %s\n", mountPoint)
 
 	// Use fusermount to unmount (standard way to unmount FUSE filesystems)
@@ -328,8 +349,10 @@ func unmountWorkspace(mountPoint string) {
 }
 
 func init() {
-	// Add global flags to the workspace-sync command
-	WorkspaceSyncCmd.Flags().String("server", "localhost:9090", "gRPC server address")
-}
+	// Add global flags to the workspace sync command
+	workspaceSyncCmd.Flags().String("server", "localhost:9090", "gRPC server address")
 
-// init() removed from runners.go - WorkspaceSyncCmd is now registered as a top-level command in main.go
+	// Add subcommands to workspace command
+	WorkspaceCmd.AddCommand(workspaceSyncCmd)
+	WorkspaceCmd.AddCommand(workspaceInitCmd)
+}

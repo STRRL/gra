@@ -29,7 +29,7 @@ if [ -n "$PUBLIC_KEY" ]; then
 fi
 
 # Set proper ownership for workspace
-chown -R runner:runner /workspace
+chown runner:runner /workspace
 
 # Start SSH daemon in background
 /usr/sbin/sshd -D &

@@ -17,6 +17,7 @@ if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ] && [ -n "$S3_B
     s3fs "$S3_BUCKET" /workspace/dataset \
         -o passwd_file=/etc/passwd-s3fs \
         -o allow_other \
+        -o use_cache=/tmp/s3fs-cache \
         -o ensure_diskfree=100 \
         -o parallel_count=10 \
         -o multireq_max=5 \

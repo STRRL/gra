@@ -46,7 +46,7 @@ RUN mkdir /var/run/sshd && \
 
 # Create workspace structure
 RUN mkdir -p /workspace/code /workspace/outputs /workspace/dataset
-RUN chown -R runner:runner /workspace
+RUN chown runner:runner /workspace
 
 # Setup SSH keys directory
 RUN mkdir -p /home/runner/.ssh && \
