@@ -224,27 +224,78 @@ var getCmd = &cobra.Command{
 
 // deleteCmd represents the delete command
 var deleteCmd = &cobra.Command{
-	Use:   "delete RUNNER_ID",
-	Short: "Delete a runner",
-	Long:  `Delete a runner instance.`,
+	Use:   "delete [RUNNER_ID]",
+	Short: "Delete a runner or all runners",
+	Long:  `Delete a runner instance by ID, or delete all runners with --all flag.`,
 	Aliases: []string{"rm"},
-	Args:  cobra.ExactArgs(1),
+	Args: func(cmd *cobra.Command, args []string) error {
+		all, _ := cmd.Flags().GetBool("all")
+		if all && len(args) > 0 {
+			return fmt.Errorf("cannot specify runner ID when using --all flag")
+		}
+		if !all && len(args) != 1 {
+			return fmt.Errorf("requires exactly one RUNNER_ID when not using --all flag")
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
-		runnerID := args[0]
+		all, _ := cmd.Flags().GetBool("all")
+		
+		if all {
+			// Delete all runners
+			// First, list all runners
+			listReq := &gradv1.ListRunnersRequest{
+				Status: gradv1.RunnerStatus_RUNNER_STATUS_UNSPECIFIED, // Get all runners regardless of status
+				Limit:  0, // No limit
+				Offset: 0,
+			}
 
-		req := &gradv1.DeleteRunnerRequest{
-			RunnerId: runnerID,
-		}
+			listResp, err := grpcClient.RunnerService().ListRunners(context.Background(), listReq)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to list runners: %v\n", err)
+				os.Exit(1)
+			}
 
-		resp, err := grpcClient.RunnerService().DeleteRunner(context.Background(), req)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to delete runner: %v\n", err)
-			os.Exit(1)
-		}
+			if len(listResp.Runners) == 0 {
+				fmt.Printf("No runners found to delete\n")
+				return
+			}
 
-		if err := PrintMessage(resp.Message); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to print message: %v\n", err)
-			os.Exit(1)
+			// Delete each runner
+			successCount := 0
+			for _, runner := range listResp.Runners {
+				deleteReq := &gradv1.DeleteRunnerRequest{
+					RunnerId: runner.Id,
+				}
+
+				_, err := grpcClient.RunnerService().DeleteRunner(context.Background(), deleteReq)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to delete runner %s: %v\n", runner.Id, err)
+				} else {
+					fmt.Printf("Deleted runner: %s\n", runner.Id)
+					successCount++
+				}
+			}
+
+			fmt.Printf("Successfully deleted %d out of %d runners\n", successCount, len(listResp.Runners))
+		} else {
+			// Delete single runner
+			runnerID := args[0]
+
+			req := &gradv1.DeleteRunnerRequest{
+				RunnerId: runnerID,
+			}
+
+			resp, err := grpcClient.RunnerService().DeleteRunner(context.Background(), req)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to delete runner: %v\n", err)
+				os.Exit(1)
+			}
+
+			if err := PrintMessage(resp.Message); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to print message: %v\n", err)
+				os.Exit(1)
+			}
 		}
 	},
 }
@@ -327,6 +378,9 @@ func init() {
 	listCmd.Flags().StringP("status", "s", "", "Filter by status (creating, running, stopping, stopped, error)")
 	listCmd.Flags().Int32P("limit", "l", 0, "Limit number of results")
 	listCmd.Flags().Int32("offset", 0, "Offset for pagination")
+
+	// Delete command flags
+	deleteCmd.Flags().Bool("all", false, "Delete all runners")
 
 	// Exec command flags
 	execCmd.Flags().StringP("shell", "s", "bash", "Shell to use for command execution")
