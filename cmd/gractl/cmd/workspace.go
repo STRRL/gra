@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -16,6 +17,7 @@ import (
 
 	gradv1 "github.com/strrl/gra/gen/grad/v1"
 	"github.com/strrl/gra/cmd/gractl/client"
+	"github.com/strrl/gra/cmd/gractl/assets"
 )
 
 // WorkspaceCmd represents the workspace command
@@ -219,12 +221,74 @@ Press Ctrl+C to unmount and clean up.`,
 // workspaceInitCmd represents the workspace init command
 var workspaceInitCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialize workspace configuration",
-	Long:  `Initialize workspace configuration (placeholder command).`,
+	Short: "Initialize workspace with template files",
+	Long: `Initialize workspace with template files including CLAUDE.md, gractl documentation, and configuration examples.
+
+This command will create the following files in the current directory:
+- CLAUDE.md: Guide for using Claude Code with gractl
+- gractl-docs.md: Complete gractl documentation
+
+The template files provide guidance for:
+- Setting up gractl configuration (.gractl.toml)
+- Working with remote runners and S3 data
+- Using specialized Claude commands for data analysis
+
+Example:
+  gractl workspace init
+
+This will create all template files in the current working directory.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Workspace init command - placeholder implementation")
-		fmt.Println("This command is reserved for future workspace initialization features.")
+		if err := initWorkspace(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to initialize workspace: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("Workspace initialized successfully!")
+		fmt.Println("\nNext steps:")
+		fmt.Println("1. Review CLAUDE.md for setup instructions")
+		fmt.Println("2. Create .gractl.toml configuration file")
+		fmt.Println("3. Start using /gra-dataset-introduction and /gra-query commands")
 	},
+}
+
+// initWorkspace creates workspace template files in the current directory
+func initWorkspace() error {
+	workspaceFS := assets.GetWorkspaceTemplateFS()
+	
+	return fs.WalkDir(workspaceFS, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		
+		// Skip the root directory
+		if path == "." {
+			return nil
+		}
+		
+		// Create directories
+		if d.IsDir() {
+			return os.MkdirAll(path, 0755)
+		}
+		
+		// Check if file already exists
+		if _, err := os.Stat(path); err == nil {
+			fmt.Printf("File %s already exists, skipping...\n", path)
+			return nil
+		}
+		
+		// Read embedded file content
+		content, err := fs.ReadFile(workspaceFS, path)
+		if err != nil {
+			return fmt.Errorf("failed to read embedded file %s: %w", path, err)
+		}
+		
+		// Create the file
+		if err := os.WriteFile(path, content, 0644); err != nil {
+			return fmt.Errorf("failed to create file %s: %w", path, err)
+		}
+		
+		fmt.Printf("Created %s\n", path)
+		return nil
+	})
 }
 
 // checkWorkspaceDependencies verifies that required external commands are available

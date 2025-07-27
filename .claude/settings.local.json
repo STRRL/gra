@@ -34,7 +34,8 @@
       "Bash(kubectl exec:*)",
       "Bash(go list:*)",
       "Bash(kubectl get pods:*)",
-      "WebFetch(domain:dev.to)"
+      "WebFetch(domain:dev.to)",
+      "Bash(../out/gractl workspace init)"
     ],
     "deny": []
   }
