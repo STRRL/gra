@@ -114,34 +114,34 @@ func (req *PodCreationRequest) ToPodSpec() *corev1.Pod {
 			Name:  "S3_BUCKET",
 			Value: req.Workspace.Bucket,
 		})
-		
+
 		if req.Workspace.Endpoint != "" {
 			s3fsEnv = append(s3fsEnv, corev1.EnvVar{
 				Name:  "S3_ENDPOINT",
 				Value: req.Workspace.Endpoint,
 			})
 		}
-		
+
 		if req.Workspace.Prefix != "" {
 			s3fsEnv = append(s3fsEnv, corev1.EnvVar{
 				Name:  "S3_PREFIX",
 				Value: req.Workspace.Prefix,
 			})
 		}
-		
+
 		if req.Workspace.Region != "" {
 			s3fsEnv = append(s3fsEnv, corev1.EnvVar{
 				Name:  "AWS_DEFAULT_REGION",
 				Value: req.Workspace.Region,
 			})
 		}
-		
+
 		// Always use hardcoded mount path
 		s3fsEnv = append(s3fsEnv, corev1.EnvVar{
 			Name:  "MOUNT_PATH",
 			Value: "/workspace/dataset",
 		})
-		
+
 		// Set read-only flag
 		if req.Workspace.ReadOnly {
 			s3fsEnv = append(s3fsEnv, corev1.EnvVar{
@@ -167,28 +167,29 @@ func (req *PodCreationRequest) ToPodSpec() *corev1.Pod {
 			Name:      req.PodName,
 			Namespace: req.Namespace,
 			Labels: map[string]string{
-				"app":                             "grad-runner",
-				"app.kubernetes.io/managed-by":    "grad",
-				"app.kubernetes.io/component":     "runner",
-				"app.kubernetes.io/name":          "grad-runner",
-				"app.kubernetes.io/instance":      req.RunnerID,
-				"type":      "runner",
-				"runner-id": req.RunnerID,
+				"app":                          "grad-runner",
+				"app.kubernetes.io/managed-by": "grad",
+				"app.kubernetes.io/component":  "runner",
+				"app.kubernetes.io/name":       "grad-runner",
+				"app.kubernetes.io/instance":   req.RunnerID,
+				"type":                         "runner",
+				"runner-id":                    req.RunnerID,
 			},
 			Annotations: map[string]string{
-				"grad.io/runner-id":     req.RunnerID,
-				"grad.io/runner-name":   req.RunnerName,
-				"grad.io/status":        "creating",
-				"grad.io/created-at":    time.Now().Format(time.RFC3339),
+				"grad.io/runner-id":   req.RunnerID,
+				"grad.io/runner-name": req.RunnerName,
+				"grad.io/status":      "creating",
+				"grad.io/created-at":  time.Now().Format(time.RFC3339),
 			},
 			Finalizers: []string{
 				"grad.io/runner-finalizer",
 			},
 		},
 		Spec: corev1.PodSpec{
-			RestartPolicy: corev1.RestartPolicyNever,
-			ShareProcessNamespace: &[]bool{true}[0],
-			Volumes: []corev1.Volume{workspaceVolume},
+			RestartPolicy:                  corev1.RestartPolicyAlways,
+			ShareProcessNamespace:          &[]bool{true}[0],
+			Volumes:                        []corev1.Volume{workspaceVolume},
+			TerminationGracePeriodSeconds:  &[]int64{3}[0],
 			// Regular containers - S3FS sidecar and main runner
 			Containers: []corev1.Container{
 				// S3FS sidecar container
