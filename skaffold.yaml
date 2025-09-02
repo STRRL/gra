@@ -1,0 +1,105 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: grad-development
+
+# Build configuration
+build:
+  tagPolicy:
+    gitCommit: {}
+  artifacts:
+    # Grad service container
+    - image: grad
+      context: .
+      docker:
+        dockerfile: cmd/grad/Dockerfile
+        buildArgs:
+          CGO_ENABLED: "0"
+          GOOS: "linux"
+          # Use TARGETARCH from buildkit for multi-arch support
+    
+    # Main runner container (pre-built for dynamic creation by grad)
+    - image: grad-runner
+      context: .
+      docker:
+        dockerfile: devenv/runner/main/Dockerfile
+    
+    # S3FS sidecar container for S3 dataset mounting
+    - image: grad-runner-s3fs
+      context: .
+      docker:
+        dockerfile: devenv/runner/s3fs/Dockerfile
+
+# Manifest configuration
+manifests:
+  helm:
+    releases:
+      - name: grad
+        chartPath: devenv/helm/grad
+        setValueTemplates:
+          grad.image.tag: "{{.IMAGE_TAG_grad}}"
+          grad.runner.image.tag: "{{.IMAGE_TAG_grad_runner}}"
+          grad.s3fs.image.tag: "{{.IMAGE_TAG_grad_runner_s3fs}}"
+
+# Deploy configuration using kubectl
+deploy:
+  kubectl: {}
+
+# Port forwarding for local development
+portForward:
+  - resourceType: service
+    resourceName: grad-service
+    port: 8080
+    localPort: 8080
+  - resourceType: service
+    resourceName: grad-service
+    port: 9090
+    localPort: 9090
+
+# Profiles for different environments
+profiles:
+  # Development profile - no push, local builds
+  - name: development
+    activation:
+      - command: dev
+    build:
+      local:
+        push: false
+        useDockerCLI: true
+
+  # Production profile - push images
+  - name: production
+    build:
+      local:
+        push: true
+        useDockerCLI: false
+
+  # Debug profile - verbose logging
+  - name: debug
+    build:
+      local:
+        push: false
+      artifacts:
+        - image: grad
+          docker:
+            buildArgs:
+              DEBUG: "true"
+              LOG_LEVEL: "debug"
+
+  # Extended development profile with gractl
+  - name: extended
+    build:
+      artifacts:
+        - image: grad
+        - image: gractl
+          docker:
+            dockerfile: cmd/gractl/Dockerfile
+    manifests:
+      helm:
+        releases:
+          - name: grad
+            chartPath: devenv/helm/grad
+            setValueTemplates:
+              grad.image.tag: "{{.IMAGE_TAG_grad}}"
+              grad.runner.image.tag: "{{.IMAGE_TAG_grad_runner}}"
+              grad.s3fs.image.tag: "{{.IMAGE_TAG_grad_runner_s3fs}}"

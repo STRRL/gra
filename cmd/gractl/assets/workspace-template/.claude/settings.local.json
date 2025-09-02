@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gractl runners:*)",
+      "Bash(gractl execute:*)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(mkdir:*)"
+    ],
+    "deny": []
+  }
+}

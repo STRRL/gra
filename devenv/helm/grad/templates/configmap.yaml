@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.grad.configMap.name }}
+  labels:
+    {{- include "grad.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    server:
+      http_port: {{ .Values.grad.service.http.port }}
+      grpc_port: {{ .Values.grad.service.grpc.port }}
+      log_level: {{ .Values.grad.env.LOG_LEVEL }}
+    
+    runners:
+      # Runner container image configuration
+      image: "{{ .Values.grad.runner.image.repository }}:{{ .Values.grad.runner.image.tag }}"
+      
+      # Default runner resources
+      resources:
+        requests:
+          memory: "256Mi"
+          cpu: "200m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
+      
+      # Runner workspace configuration
+      workspace:
+        root: "/workspace"
+        code_dir: "code" 
+        output_dir: "outputs"
+        data_dir: "data"
+      
+      # SSH configuration for workspace sync
+      ssh:
+        port: 22
+        key_path: "/etc/ssh/keys"
+      
+      # S3FS mount configuration  
+      s3fs:
+        mount_point: "/workspace/data"
+        cache_dir: "/tmp/s3fs-cache"
+        options: "allow_other,use_cache=/tmp/s3fs-cache"
+    
+    kubernetes:
+      namespace: {{ .Release.Namespace | quote }}
+      runner_name_prefix: "runner-"
+      cleanup_timeout: "300s"
+      
+    development:
+      enable_debug: false
+      mock_s3: false
+      local_workspace: "/tmp/grad-workspace"

@@ -1,0 +1,221 @@
+syntax = "proto3";
+
+package grad.v1;
+
+option go_package = "github.com/strrl/gra/gen/grad/v1;gradv1";
+
+// RunnerService manages the lifecycle of runners in the grad system
+service RunnerService {
+  // CreateRunner creates a new runner instance
+  rpc CreateRunner(CreateRunnerRequest) returns (CreateRunnerResponse);
+  
+  // DeleteRunner removes a runner instance
+  rpc DeleteRunner(DeleteRunnerRequest) returns (DeleteRunnerResponse);
+  
+  // ListRunners returns all available runners
+  rpc ListRunners(ListRunnersRequest) returns (ListRunnersResponse);
+  
+  // ExecuteCommandStream executes a command in a specific runner with streaming output
+  rpc ExecuteCommandStream(ExecuteCommandRequest) returns (stream ExecuteCommandStreamResponse);
+  
+  // GetRunner returns details about a specific runner
+  rpc GetRunner(GetRunnerRequest) returns (GetRunnerResponse);
+}
+
+// CreateRunnerRequest defines the request to create a new runner
+message CreateRunnerRequest {
+  // Name of the runner (optional, will be auto-generated if not provided)
+  string name = 1;
+  
+  // Environment variables to set in the runner
+  map<string, string> env = 2;
+  
+  // Workspace configuration for S3 mounting
+  WorkspaceConfig workspace = 3;
+}
+
+// WorkspaceConfig defines S3 workspace configuration
+message WorkspaceConfig {
+  // S3 bucket name
+  string bucket = 1;
+  
+  // S3 endpoint URL (optional, defaults to AWS S3)
+  string endpoint = 2;
+  
+  // S3 path prefix within the bucket (optional)
+  string prefix = 3;
+  
+  // AWS region (optional, defaults to us-east-1)
+  string region = 4;
+  
+  // Read-only mount (optional, defaults to false)
+  bool read_only = 5;
+}
+
+// CreateRunnerResponse defines the response after creating a runner
+message CreateRunnerResponse {
+  // The created runner details
+  Runner runner = 1;
+}
+
+// DeleteRunnerRequest defines the request to delete a runner
+message DeleteRunnerRequest {
+  // ID of the runner to delete
+  string runner_id = 1;
+}
+
+// DeleteRunnerResponse defines the response after deleting a runner
+message DeleteRunnerResponse {
+  // Success message
+  string message = 1;
+}
+
+// ListRunnersRequest defines the request to list runners
+message ListRunnersRequest {
+  // Optional filter by status
+  RunnerStatus status = 1;
+  
+  // Pagination limit
+  int32 limit = 2;
+  
+  // Pagination offset
+  int32 offset = 3;
+}
+
+// ListRunnersResponse defines the response containing runner list
+message ListRunnersResponse {
+  // List of runners
+  repeated Runner runners = 1;
+  
+  // Total count of runners (for pagination)
+  int32 total = 2;
+}
+
+// ExecuteCommandRequest defines the request to execute a command
+message ExecuteCommandRequest {
+  // ID of the runner to execute code in
+  string runner_id = 1;
+  
+  // Command to execute
+  string command = 2;
+  
+  // Shell to use for the command (e.g., bash, sh, python)
+  string shell = 3;
+  
+  // Timeout for execution (in seconds)
+  int32 timeout = 4;
+  
+  // Working directory for execution
+  string working_dir = 5;
+  
+  // Workspace configuration for S3 mounting (used when auto-creating runners)
+  WorkspaceConfig workspace = 6;
+  
+  // Environment variables to set in the runner (used when auto-creating runners)
+  map<string, string> env = 7;
+}
+
+// ExecuteCommandStreamResponse defines streaming response for command execution
+message ExecuteCommandStreamResponse {
+  // Type of data being streamed
+  StreamType type = 1;
+  
+  // Data content (stdout/stderr)
+  bytes data = 2;
+  
+  // Exit code (only present in final message when type = EXIT)
+  int32 exit_code = 3;
+}
+
+// StreamType indicates the type of streaming data
+enum StreamType {
+  STREAM_TYPE_UNSPECIFIED = 0;
+  STREAM_TYPE_STDOUT = 1;
+  STREAM_TYPE_STDERR = 2;
+  STREAM_TYPE_EXIT = 3;
+}
+
+// GetRunnerRequest defines the request to get runner details
+message GetRunnerRequest {
+  // ID of the runner to retrieve
+  string runner_id = 1;
+}
+
+// GetRunnerResponse defines the response containing runner details
+message GetRunnerResponse {
+  // The runner details
+  Runner runner = 1;
+}
+
+// Runner represents a runner instance
+message Runner {
+  // Unique identifier for the runner
+  string id = 1;
+  
+  // Name of the runner
+  string name = 2;
+  
+  // Current status of the runner
+  RunnerStatus status = 3;
+  
+  // Resource requirements/allocation
+  ResourceRequirements resources = 4;
+  
+  // Creation timestamp
+  int64 created_at = 5;
+  
+  // Last updated timestamp
+  int64 updated_at = 6;
+  
+  // SSH connection details
+  SSHDetails ssh = 7;
+  
+  // Runner's IP address
+  string ip_address = 8;
+  
+  // Environment variables
+  map<string, string> env = 9;
+}
+
+// RunnerStatus represents the status of a runner
+enum RunnerStatus {
+  RUNNER_STATUS_UNSPECIFIED = 0;
+  RUNNER_STATUS_CREATING = 1;
+  RUNNER_STATUS_RUNNING = 2;
+  RUNNER_STATUS_STOPPING = 3;
+  RUNNER_STATUS_STOPPED = 4;
+  RUNNER_STATUS_ERROR = 5;
+}
+
+// ResourceRequirements defines resource allocation for a runner
+message ResourceRequirements {
+  // CPU allocation (in millicores, e.g., 1000 = 1 CPU)
+  int32 cpu_millicores = 1;
+  
+  // Memory allocation (in MB)
+  int32 memory_mb = 2;
+  
+  // Storage allocation (in GB)
+  int32 storage_gb = 3;
+}
+
+// SSHDetails contains SSH connection information
+message SSHDetails {
+  // SSH host
+  string host = 1;
+  
+  // SSH port
+  int32 port = 2;
+  
+  // SSH username
+  string username = 3;
+  
+  // SSH public key (for connection)
+  string public_key = 4;
+}
+
+// ExecuteService manages command execution with automatic runner provisioning
+service ExecuteService {
+  // ExecuteCommand executes a command, creating a runner if needed
+  rpc ExecuteCommand(ExecuteCommandRequest) returns (stream ExecuteCommandStreamResponse);
+}

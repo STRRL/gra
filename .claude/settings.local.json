@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go mod:*)",
+      "Bash(go get:*)",
+      "Bash(mkdir:*)",
+      "Bash(make:*)",
+      "Bash(ls:*)",
+      "Bash(./out/gra:*)",
+      "Bash(rm:*)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:gist.githubusercontent.com)",
+      "Bash(mv:*)",
+      "Bash(aws s3:*)",
+      "Bash(s3fs:*)",
+      "Bash(chmod:*)",
+      "WebFetch(domain:blog.ronin.cloud)",
+      "WebFetch(domain:improve.dk)",
+      "WebFetch(domain:skaffold.dev)",
+      "Bash(skaffold verify:*)",
+      "Bash(go build:*)",
+      "WebFetch(domain:buf.build)",
+      "Bash(curl:*)",
+      "Bash(grpcurl:*)",
+      "WebFetch(domain:pkg.go.dev)",
+      "WebFetch(domain:github.com)",
+      "Bash(go test:*)",
+      "Bash(buf generate:*)",
+      "WebFetch(domain:codelabs.developers.google.com)",
+      "WebFetch(domain:cloud.google.com)",
+      "Bash(skaffold diagnose:*)",
+      "WebFetch(domain:kubernetes.io)",
+      "WebFetch(domain:duckdb.org)",
+      "Bash(kubectl exec:*)",
+      "Bash(go list:*)",
+      "Bash(kubectl get pods:*)",
+      "WebFetch(domain:dev.to)",
+      "Bash(../out/gractl workspace init)"
+    ],
+    "deny": []
+  }
+}
